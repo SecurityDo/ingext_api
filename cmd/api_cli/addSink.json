@@ -1,0 +1,10 @@
+{
+     "action":"add",
+     "args":{
+       "entry":{
+         "name":"event",
+         "type":"dataLake",
+         "dataLake":{"integrationID":"intg_r6rct23ko0"}
+       }
+     }
+}

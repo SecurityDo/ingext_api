@@ -1,0 +1,26 @@
+{
+    "dataType":"event",
+    "partition":"default",
+    "options":{
+       "facets":{
+           "facets":[
+               {"title":"EventTypes","size":20,"order":"count","field":"@eventType"}
+            ],
+           "mustFilters":[],
+           "mustNotFilters":[],
+           "dateFacets":[
+             {"name":"dateHistogram","key":"@timestamp"}
+           ]
+       },
+       "dataType":"event",
+       "dateFacetField":"@timestamp",
+       "fetchOffset":0,
+       "fetchLimit":1000,
+       "range_from":1766156871761,
+       "range_to":1766160471762,
+       "searchStr":"",
+       "sortField":"@timestamp",
+       "sortOrder":"desc"
+    },
+    "index":"event"
+}

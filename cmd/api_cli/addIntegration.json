@@ -1,0 +1,17 @@
+{
+    "action":"add",
+    "args":{
+       "entry":{
+         "integration":"DataLake",
+         "name":"event",
+         "description":"K8s logs",
+         "config":{
+            "managed":true,
+            "schemaName":"ingext default",
+            "index":"event"
+         },
+         "secret":{},
+         "createPlugin":false
+       }
+    }
+}

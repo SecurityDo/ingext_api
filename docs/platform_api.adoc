@@ -1,0 +1,800 @@
+== data structures
+
+* Data Source: One Type "redis", "plugin", "s3", "syslog"
+** For redis type data source, required fields: "type", "name" and "queue"
+** For plugin type data source, required fields: "type", "plugin.id"
+** name is not required for plugin type data source (will be set to "plugin.integration:plugin.name")
+** DEPRECATED:  for plugin type data source, call platform_list_plugins to get all available plugins
+** NEW:         for plugin type data source, call platform_integration_dao to get all available integrations
+** Format is "json" or "text" (default is "json")
+----
+  type RedisConfig struct {
+	Host  string `json:"host"`
+	Port  int    `json:"port"`
+	Queue string `json:"queue"`
+  }
+
+  type RedisSourceConfig struct {
+	Redis *RedisConfig `json:"redis"`
+  }
+
+
+  type PluginSourceConfig struct {
+	Name        string `json:"name"`
+	ID          string `json:"id"`
+	Integration string `json:"integration"`
+  }
+
+  type S3SourceConfig struct {
+
+	Plugin        *PluginSourceConfig `json:"plugin,omitempty"`
+	Bucket        string `json:"bucket"`
+
+	Prefix       string `json:"prefix"`
+	Begin    string `json:"begin"`
+	End   string `json:"end"`
+}
+
+type PluginSourceConfig struct {
+	Name string `json:"name"`
+	Integration string `json:"integration"`
+	ID string `json:"id"`
+}
+
+type SyslogSourceConfig struct {
+	Path string `json:"path"`
+}
+
+
+type Tag struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+type DataSourceConfig struct {
+	Type  string             `json:"type"`
+	Name  string             `json:"name"`
+	ID    string             `json:"id"`
+	// default is json
+	Format string 			 `json:"format"`
+	Tags   []*Tag              `json:"tags"`
+    Redis *RedisSourceConfig `json:"redis"`
+    S3     *S3SourceConfig     `json:"s3"`
+	Plugin *PluginSourceConfig `json:"plugin"`
+	Syslog *SyslogSourceConfig `json:"syslog"`
+}
+----
+
+* Data Sink:  Two Types "redis", "lavaDB", "drop", "s3"
+** Required fields: "type", "name" and "queue"
+** Required fields for lavadb: none
+** Required fields for s3: integrationID, objectPath
+
+----
+type DataSinkConfig struct {
+	Type   string            `json:"type"`
+	Name   string            `json:"name"`
+	ID     string            `json:"id"`
+	Redis  *RedisSinkConfig  `json:"redis"`
+	LavaDB *LavaDBSinkConfig `json:"lavaDB"`
+	S3	 *S3SinkConfig     `json:"s3"`
+}
+
+type S3SinkConfig struct {
+	// Prefix       string `json:"prefix"`
+	// must be s3 integration
+	IntegrationID string `json:"integrationID"`
+	Plugin        *PluginSourceConfig `json:"plugin,omitempty"`
+	Bucket        string `json:"bucket"`
+	// default is gzip
+	Compression string `json:"compression"`
+	// FPL code to generate object path
+	ObjectPath	string `json:"objectPath"`
+}
+
+type LavaDBSinkConfig struct {
+	Tenant string `json:"tenant"`
+	Index  string `json:"index"`
+}
+----
+
+* Router:
+** Required fields: name, 
+** options workerCount (default is 1)
+----
+  type RouterConfig struct {
+	Name string `json:"name"`
+	ID   string `json:"id"`
+
+	WorkerCount int                 `json:"workerCount"`
+	PipeIDs     []string            `json:"pipeIDs"`
+	
+}
+----
+
+* Pipe:
+** Required fields: name, routerId, processorNames
+** Options: selector (lambda function)
+** channelID or sinkIDs 
+----
+type StreamPipeConfig struct {
+	Name           string   `json:"name"`
+	ID             string   `json:"id"`
+	RouterID       string   `json:"routerID"`
+	MatchAll       bool     `json:"matchAll"`
+	Selector       string   `json:"selector"`
+	ProcessorNames []string `json:"processorNames"`
+	ChannelID      string   `json:"channelID"`
+	SinkIDs        []string `json:"sinkIDs"`
+}
+----
+
+* Channel:
+** Required fields: name
+----
+  type ChannelConfig struct {
+	Name string `json:"name"`
+	ID   string `json:"id"`
+	// rules
+	SinkIDs []string          `json:"sinkIDs"`
+}
+----
+== platform_list_plugins
+----
+   "plugins":    ["Office365","SentinelOne"], 
+----
+
+
+== platform_list_configs
+
+* return platform configurations in one call
+----
+   "sources":     sources, 
+   "sinks":       sinks,
+   "routers":     routers,
+   "pipes":       pipes,
+   "channels":    channels,
+   "connections": connections,
+   "integrations" integrations,
+   "errors" : errors,
+   "errorStates" : errorStates,
+
+type ComponentErrorState struct {
+	ID     string                                 `json:"id"`
+	Name   string                                 `json:"name"`
+	Errors []*integrationModel.PluginNotification `json:"errors"`
+	Alerts []*integrationModel.PluginNotification `json:"alerts"`
+}
+
+
+----
+
+== platform_datasource_dao
+
+* actions: get, add, delete
+
+== platform_datasink_dao
+
+* actions: get, add, delete
+
+== platform_router_dao
+
+* actions: get, add, delete
+
+== platform_channel_dao
+
+* actions: get, add, delete
+
+== platform_processor_dao 
+
+* actions: get, add, delete, update, list
+
+== platform_source_set_router
+
+* set data source router 
+** set routerID to "" to remove router
+** the backend will remove current router before setting new router.
+----
+type SourceSetRouterReq struct {
+	RouterID     string `json:"routerID"`
+	DataSourceID string `json:"dataSourceID"`
+}
+----
+
+== platform_router_add_source (deprecated)
+
+----
+type RouterAddSourceReq struct {
+	RouterID     string `json:"routerID"`
+	DataSourceID string `json:"dataSourceID"`
+}
+----
+
+
+== platform_router_delete_source (deprecated)
+
+----
+type RouterDeleteSourceReq struct {
+	RouterID     string `json:"routerID"`
+	DataSourceID string `json:"dataSourceID"`
+}
+----
+
+== platform_router_add_pipe
+
+----
+type RouterAddPipeReq struct {
+	RouterID   string                          `json:"routerID"`
+	PipeConfig *platformModel.StreamPipeConfig `json:"pipeConfig"`
+}
+
+----
+
+
+== platform_router_delete_pipe
+
+----
+type RouterDeletePipeReq struct {
+	RouterID string `json:"routerID"`
+	PipeID   string `json:"pipeID"`
+}
+----
+
+== platform_router_update_pipes
+
+----
+type RouterUpdatePipesReq struct {
+	RouterID     string `json:"routerID"`
+	PipeIDs      []string `json:"pipeIDs"`
+}
+----
+
+== platform_pipe_update
+
+----
+type PipeUpdateReq struct {
+	RouterID   string                          `json:"routerID"`
+	PipeConfig *platformModel.StreamPipeConfig `json:"pipeConfig"`
+}
+----
+
+== platform_processor_validate
+
+----
+type fplProcessorValidateRequest struct {
+	Name   string `json:"name"`
+	Script string `json:"script"`
+}
+
+type fplProcessorValidateResult struct {
+	Console string `json:"console"`
+	Error   string `json:"error"`
+	OK      bool   `json:"ok"`
+}
+----
+
+== platform_processor_test
+
+----
+type fplProcessorTestRequest struct {
+	Name   string `json:"name"`
+	Script string `json:"script"`
+	Source string `json:"source"`
+}
+
+type fplProcessorTestResult struct {
+	Console string `json:"console"`
+	Error   string `json:"error"`
+	// OK bool `json:"ok"`
+	NewContent string `json:"newContent"`
+	Status     string `json:"status"`
+}
+----
+
+== platform_event_tail 
+
+* get last processed events from dataSource, dataSink and pipe
+** if limit not set, default entry is 10
+** status field only apply to pipes. ( "pass", "abort", "drop", "error")
+** status default value is "pass"
+----
+type EventTailReq struct {
+	ID    string `json:"id"`
+        Status string `json:"status"`
+	Limit int    `json:"limit"`
+}
+
+type EventTailResponse struct {
+	Entries []string `json:"entries"`
+}
+----
+
+== platform_processor_tail
+
+* get processor traces from one pipe 
+** if processorName is not set, return the pipe log
+** if limit not set, default value is 100
+** workerIndex is optional, default value is 0
+----
+type ProcessorTailReq struct {
+	PipeID        string `json:"pipeID"`
+	ProcessorName string `json:"processorName"`
+	WorkerIndex   int    `json:"workerIndex"`
+	Limit         int    `json:"limit"`
+}
+
+type ProcessorTailResponse struct {
+	Entries []*fplmodel.LogEvent `json:"entries"`
+}
+
+type LogEvent struct {
+	Source    string    `json:"source,omitempty"`
+	Timestamp time.Time `json:"timestamp,omitempty"`
+	Msg       string    `json:"msg,omitempty"`
+}
+----
+
+== platform_processor_pipes
+
+* get all pipes for one processor
+----
+type ProcessorPipesReq struct {
+	ProcessorName string `json:"processorName"`
+}
+
+type PipeInfo struct {
+	PipeID      string `json:"pipeID"`
+	PipeName    string `json:"pipeName"`
+	Router      string `json:"router"`
+	WorkerCount int    `json:"workerCount"`
+}
+
+type ProcessorPipesResponse struct {
+	Pipes []*PipeInfo `json:"pipes"`
+}
+----
+
+== platform_component_metrics
+
+* get metrics from one component
+** from/to "-24h@m", "@m"
+** interval "1h" or "1d", "10m"
+----
+  
+type ComponentMetricReq struct {
+	// router, pipe, datasource, datasink, channel
+	Component string `json:"component"`
+	ID        string `json:"id"`
+	From      string `json:"from"`
+	To        string `json:"to"`
+	Interval  string `json:"interval"`
+}
+
+----
+
+== platform_component_metrics
+
+* get metrics from one pipe processor
+----
+type ProcessorMetricReq struct {
+	// router, pipe, datasource, datasink, channel
+	PipeID      string `json:"pipeID"`
+	Processor string `json:"processor"`
+	From      string `json:"from"`
+	To        string `json:"to"`
+	Interval  string `json:"interval"`
+}
+----
+
+== platform_get_component_state 
+
+* get component state (for now only available for data source component)
+----
+type GetComponentStateReq struct {
+	ID string `json:"id"`
+}
+type GetComponentStateResponse struct {
+	State json.RawMessage `json:"state"`
+}
+----
+
+== platform_set_component_tags 
+
+* set component tags (for now only available for data source component)
+----
+type SetComponentTagsReq struct {
+   ID string `json:"id"`
+   Tags []*Tag `json:"tags"`
+----
+
+== platform_import_device_search
+
+* search import devices
+----
+kargs:{
+
+  options: {
+    facets: {
+      facets: [
+        {
+           title:"Category",
+           size: 10,
+           order: "count",
+           field: "group"
+        }
+        ...
+      ],
+      mustFilters:[],
+      mustNotFilters:[]
+    }
+    fetchLimit: 20,
+    fetchOffset: 0,
+    searchStr:"",
+    sortField:"timestamp",
+    sortOrder:"asc"
+  }
+
+}
+
+var args struct {
+	Options *esv7.SimpleFacetSearchOption `json:"options"`
+}
+
+type SimpleSearchOption struct {
+	SearchStr  string `json:"searchStr,omitempty"`
+	// RangeFrom  int64  `json:"range_from"`
+	// RangeTo    int64  `json:"range_to"`
+	// RangeField string `json:"range_field"`
+
+	FetchOffset int           `json:"fetchOffset"`
+	FetchLimit  int           `json:"fetchLimit"`
+	SortField   string        `json:"sortField,omitempty"`
+	SortOrder   string        `json:"sortOrder,omitempty"`
+	// Field       string        `json:"field,omitempty"`
+	// FieldTerms  []interface{} `json:"fieldTerms,omitempty"`
+
+	Facets *FacetsOption `json:"facets,omitempty"`
+
+}
+
+type FacetEntry struct {
+	Field string `json:"field"`
+	Order string `json:"order"`
+	Size  int    `json:"size"`
+}
+type FilterEntry struct {
+	Field string        `json:"field"`
+	Terms []interface{} `json:"terms"`
+}
+
+type FacetsOption struct {
+	//  DateFacets     []*DateFacetEntry `json:"dateFacets"`
+	Facets         []*FacetEntry     `json:"facets"`
+	MustFilters    []*FilterEntry    `json:"mustFilters"`
+	MustNotFilters []*FilterEntry    `json:"mustNotFilters"`
+}
+
+----
+
+== platform_import_device_dao
+
+* actions: get, add, delete, update
+----
+type DeviceInfo struct {
+	Name     string `json:"name,omitempty"`
+	Category string `json:"category,omitempty"`
+}
+
+type DeviceEntry struct {
+	Name        string      `json:"name,omitempty"`
+	IPs         []string    `json:"ips,omitempty"`
+	Hostname    string      `json:"hostname,omitempty"`
+	Group       string      `json:"group,omitempty"`
+	Device      *DeviceInfo `json:"device,omitempty"`
+	Description string      `json:"description,omitempty"`
+
+	Exclude   bool      `json:"exclude,omitempty"`
+	CreatedOn time.Time `json:"createdOn"`
+	UpdatedOn time.Time `json:"updatedOn"`
+	Timestamp int64     `json:"timestamp"`
+}
+----
+
+== platform_import_device_states
+
+* load device states
+----
+type DeviceStatesRequest struct {
+	Names     []string `json:"names,omitempty"`
+}
+
+type DeviceState struct {
+	Name     string `json:"name,omitempty"`
+	LastSeen int64  `json:"lastSeen"`
+}
+
+
+type DeviceStatesResponse struct {
+	States     []*DeviceState `json:"states,omitempty"`
+}
+
+----
+
+== platform_import_device_metrics
+
+* load import device metrics
+----
+type DeviceMetricsRequest struct {
+	Names     []string `json:"names,omitempty"`
+}
+
+type ImportStatStat struct {
+	ImportSource string    `json:"importSource"`
+	Slots        []int64   `json:"slots"`
+	Values       []float64 `json:"values"`
+	// Values    []model.SamplePair `json:"values"`
+}
+
+type DeviceMetricsResponse struct {
+	Metrics     []*ImportStatStat `json:"metrics,omitempty"`
+}
+
+----
+
+== platform_integration_dao
+
+* actions: get, add, delete, update, list
+** not all integration has secret field
+** for integration with secret: the secret is required for "add" action.  Optional for "update" action
+** secret field will not shown for "list" and "get" action
+** createdOn and updatedOn will be set by backend.
+** Integration/Name:  [a-zA-Z][a-zA-Z0-9]+
+----
+type Integration struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Integration string    `json:"integration"`
+	Description string    `json:"description"`
+	CreatedOn   time.Time `json:"createdOn"`
+	UpdatedOn   time.Time `json:"updatedOn"`
+	Secret json.RawMessage `json:"secret"`
+	Config json.RawMessage `json:"config"`
+}
+
+type GenericDaoRequestArgs[T any] struct {
+	Id    string `json:"id,omitempty"`
+	Entry *T      `json:"entry,omitempty"`
+	// Flag  bool   `json:"flag"`
+}
+
+type GenericDaoRequest[T any] struct {
+	Action string                    `json:"action"`
+	Args   *GenericDaoRequestArgs[T] `json:"args"`
+}
+
+// integration:  Office365
+type ClientSecret struct {
+	ClientSecret string `json:"clientSecret"`
+	PrivateKey   string `json:"privateKey"`
+}
+
+type Office365AuditConfig struct {
+	TenantID   string `json:"tenantID"`
+	ClientID   string `json:"clientId"`
+	Thumbprint string `json:"thumbprint"`
+}
+
+// integration:  Slack
+type SlackConfig struct {
+	Token string `json:"token"`
+}
+
+// integration:  PagerDuty
+type PagerDutyConfig struct {
+	//IntegrationKey string `json:"integrationKey"`
+	Token string `json:"token"`
+	URL   string `json:"url"`
+}
+
+
+type PagerDutySecret struct {
+	IntegrationKey string `json:"integrationKey"`
+}
+
+// integration:  S3Bucket
+type S3BucketConfig struct {
+	Prefix    string `json:"prefix"`
+	Bucket    string `json:"bucket"`
+	Region    string `json:"region"`
+	// read, write, read/write
+	Mode      string `json:"mode"`
+	AWSUser   string `json:"awsUser"`
+	AccessKey string `json:"accessKey"`
+}
+
+type AWSUserSecret struct {
+	SecretKey string `json:"secretKey"`
+}
+
+// integration: AWSUser
+type AWSUserConfig struct {
+	AccessKey string `json:"accessKey"`
+}
+
+
+// integration:  Duo
+type DuoConfig struct {
+	//Customer       string `json:"customer"`
+	IntegrationKey string `json:"integrationKey"`
+	//SecretKey      string `json:"secretKey"`
+	APIHostname string `json:"apiHostname"`
+}
+
+type DuoSecret struct {
+	// Customer       string `json:"customer"`
+	//IntegrationKey string `json:"integrationKey"`
+	SecretKey string `json:"secretKey"`
+	//APIHostname    string `json:"apiHostname"`
+}
+
+// integration:  GSuit 
+// GSuit is read/list only, the creation of the integration is done by "Cloud Integration" page via oauth2 workflow
+type GSuiteConfig struct {
+	Config *oauth2Config `json:"config"`
+}
+
+type oauth2Config struct {
+	// ClientID is the application's ID.
+	ClientID string
+
+	// ClientSecret is the application's secret.
+	// ClientSecret string
+
+	// Endpoint contains the resource server's token endpoint
+	// URLs. These are constants specific to each server and are
+	// often available via site-specific packages, such as
+	// google.Endpoint or github.Endpoint.
+	Endpoint Endpoint
+
+	// RedirectURL is the URL to redirect users going through
+	// the OAuth flow, after the resource owner's URLs.
+	RedirectURL string
+
+	// Scope specifies optional requested permissions.
+	Scopes []string
+}
+
+// integration Falcon
+type FalconConfig struct {
+	ClientID string `json:"clientID"`
+	BaseURL  string `json:"baseURL"`
+}
+
+type FalconSecret struct {
+	ClientSecret string `json:"clientSecret"`
+}
+
+// integration Mimecast
+type MimecastConfig struct {
+	ApplicationID  string `json:"applicationID"`
+	ApplicationKey string `json:"applicationKey"`
+	AccessKey      string `json:"accessKey"`
+	// SecretKey      string                `json:"secretKey"`
+	BaseURL string `json:"baseURL"`
+}
+
+type MimecastSecret struct {
+	SecretKey string `json:"secretKey"`
+}
+
+----
+
+== platform_plugin_tail
+
+* get plugin data source traces
+----
+type PluginTailReq struct {
+	ID        string `json:"id"`
+	Limit         int    `json:"limit"`
+}
+
+type PluginTailResponse struct {
+	Lines []string `json:"lines"`
+}
+----
+
+== platform_list_component_errors
+
+----
+type ListComponentErrorReq struct {
+	// router, pipe, datasource, datasink, channel
+	ID string `json:"id"`
+}
+type PluginNotification struct {
+	Severity  string `json:"severity"`
+	Subject   string `json:"subject"`
+	ID        string `json:"id, omitempty"`
+	Source    string `json:"source, omitempty"`
+	CreatedOn string `json:"createdOn, omitempty"`
+	Message string `json:"message"`
+}
+type ListComponentErrorResponse struct {
+	Errors: []*PluginNotification `json:"errors"`,
+}
+----
+
+== platform_clear_component_error
+
+----
+type ListComponentErrorReq struct {
+	// router, pipe, datasource, datasink, channel
+	ID string `json:"id"`
+}
+----
+
+== platform_get_component_info
+
+----
+type GetComponentInfoReq struct {
+	ID string `json:"id"`
+}
+
+type ListComponentErrorReq struct {
+	// router, pipe, datasource, datasink, channel
+	ID string `json:"id"`
+}
+
+type ComponentInfo struct {
+	ID     string                                 `json:"id"`
+	Name   string                                 `json:"name"`
+	Errors []*integrationModel.PluginNotification `json:"errors"`
+	Alerts []*integrationModel.PluginNotification `json:"alerts"`
+
+	State json.RawMessage `json:"state"`
+
+	Logs []*fplmodel.LogEvent `json:"logs"`
+}
+
+----
+
+== platform_source_reload
+
+* reload data source component
+----
+type SourceReloadReq struct {
+	DataSourceID string `json:"dataSourceID"`
+}
+----
+
+== platform_profile_total
+
+* get platform cpu and memory usage
+----
+type PlatformMetricReq struct {
+	From     string `json:"from"`
+	To       string `json:"to"`
+	Interval string `json:"interval"`
+}    //  -24h@m, @m,  1h
+
+return fsb.NewOKMapResponse(map[string]interface{}{
+	"metrics": metrics,
+}), nil
+
+// "CPU" and "AllocMemory"  metrics
+type PlatformMetric struct {
+	Name      string `json:"name"`
+	ID        string `json:"id"`
+	Pipe      string `json:"pipe"`
+	Processor string `json:"processor"`
+
+	Unit string `json:"unit"`
+
+	Slots  []int64   `json:"slots"`
+	Values []float64 `json:"values"`
+}
+----
+
+== platform_profile_component
+
+* get component cpu usage 
+* get processor cpu usage 
