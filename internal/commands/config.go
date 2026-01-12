@@ -1,0 +1,266 @@
+package commands
+
+import (
+	"fmt"
+	"os"
+	"sort"
+	"text/tabwriter"
+
+	"github.com/SecurityDo/ingext_api/internal/config"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+)
+
+var (
+	confProvider string
+	confContext  string
+)
+
+// configCmd now saves multiple profiles
+var configCmd = &cobra.Command{
+	Use:   "config",
+	Short: "Configure the ingext tool",
+	Long:  `Sets configuration values in ~/.ingext/config.yaml for a specific cluster profile.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		// 1. Identify which cluster profile we are editing
+		// 'cluster' is the global flag defined in root.go
+		targetCluster := cluster
+
+		// If user didn't provide --cluster, try to edit the currently active one
+		if targetCluster == "" {
+			targetCluster = viper.GetString("current-cluster")
+		}
+
+		// If still empty, we can't proceed
+		if targetCluster == "" {
+			cmd.PrintErrln("Error: No cluster name specified. Use --cluster <name> to configure a profile.")
+			return
+		}
+
+		// 2. Set "Current Cluster" to this one (Switch context)
+		viper.Set("current-cluster", targetCluster)
+
+		// 3. Save values using Dot Notation (clusters.<name>.<field>)
+		// This creates a nested structure in the YAML file.
+		prefix := fmt.Sprintf("clusters.%s.", targetCluster)
+
+		// We always save the provider (defaults to 'eks' via flag if not typed)
+		viper.Set(prefix+"provider", confProvider)
+
+		if namespace != "" {
+			viper.Set(prefix+"namespace", namespace)
+		}
+		if confContext != "" {
+			viper.Set(prefix+"context", confContext)
+		}
+
+		// 4. Write to disk
+		if err := config.SaveConfig(); err != nil {
+			fmt.Printf("Error saving config: %v\n", err)
+			return
+		}
+
+		fmt.Printf("Configuration saved for cluster '%s'.\n", targetCluster)
+	},
+}
+
+// Subcommand: LIST
+var configListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all configured clusters",
+	Run: func(cmd *cobra.Command, args []string) {
+		current := viper.GetString("current-cluster")
+		// GetStringMap returns map[string]interface{}
+		clusters := viper.GetStringMap("clusters")
+
+		w := tabwriter.NewWriter(os.Stderr, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(w, "CURRENT\tCLUSTER\tPROVIDER\tNAMESPACE")
+		fmt.Fprintln(w, "-------\t-------\t--------\t---------")
+
+		// Sort keys for consistent output
+		var keys []string
+		for k := range clusters {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
+		for _, name := range keys {
+			// Extract details from the nested map
+			details, ok := clusters[name].(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			isCurrent := ""
+			if name == current {
+				isCurrent = "*"
+			}
+
+			// Safe getters for interface{} map
+			prov := ""
+			if v, ok := details["provider"]; ok {
+				prov = fmt.Sprintf("%v", v)
+			}
+			ns := ""
+			if v, ok := details["namespace"]; ok {
+				ns = fmt.Sprintf("%v", v)
+			}
+
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", isCurrent, name, prov, ns)
+		}
+		w.Flush()
+	},
+}
+
+// Subcommand: DELETE
+var configDeleteCmd = &cobra.Command{
+	Use:   "delete <clusterName>",
+	Short: "Delete a cluster configuration",
+	Args:  cobra.ExactArgs(1), // Requires exactly one argument
+	Run: func(cmd *cobra.Command, args []string) {
+		clusterToDelete := args[0]
+
+		// 1. Get the raw map
+		allClusters := viper.GetStringMap("clusters")
+
+		if _, exists := allClusters[clusterToDelete]; !exists {
+			fmt.Printf("Cluster '%s' not found.\n", clusterToDelete)
+			return
+		}
+
+		// 2. Delete the key
+		delete(allClusters, clusterToDelete)
+
+		// 3. Set the map back to Viper
+		viper.Set("clusters", allClusters)
+
+		// 4. Handle edge case: If we deleted the "current" cluster, unset it
+		if viper.GetString("current-cluster") == clusterToDelete {
+			viper.Set("current-cluster", "")
+			fmt.Println("Warning: You deleted the currently active cluster context.")
+		}
+
+		if err := config.SaveConfig(); err != nil {
+			fmt.Printf("Error saving config: %v\n", err)
+			return
+		}
+
+		fmt.Printf("Cluster '%s' deleted.\n", clusterToDelete)
+	},
+}
+
+// Subcommand: VIEW (Updated to show current-cluster logic)
+var configViewCmd = &cobra.Command{
+	Use:   "view",
+	Short: "View current configuration settings",
+	Run: func(cmd *cobra.Command, args []string) {
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+
+		// Identify current context
+		current := viper.GetString("current-cluster")
+		prefix := fmt.Sprintf("clusters.%s.", current)
+
+		fmt.Fprintln(w, "SETTING\tVALUE")
+		fmt.Fprintln(w, "-------\t-----")
+
+		fmt.Fprintf(w, "Current Cluster\t%s\n", current)
+		// Note: We access config via full path or fallback to defaults
+		fmt.Fprintf(w, "Provider\t%s\n", viper.GetString(prefix+"provider"))
+		fmt.Fprintf(w, "Namespace\t%s\n", viper.GetString(prefix+"namespace"))
+		fmt.Fprintf(w, "Context\t%s\n", viper.GetString(prefix+"context"))
+
+		fmt.Fprintln(w, "-------\t-----")
+		fmt.Fprintf(w, "Config File\t%s\n", viper.ConfigFileUsed())
+
+		w.Flush()
+	},
+}
+
+func init() {
+	RootCmd.AddCommand(configCmd)
+	configCmd.AddCommand(configViewCmd)
+
+	// Add new subcommands
+	configCmd.AddCommand(configListCmd)
+	configCmd.AddCommand(configDeleteCmd)
+
+	// Configuration for 'config' command
+	// Default value "eks" is set here for the FLAG
+	configCmd.Flags().StringVar(&confProvider, "provider", "eks", "Provider (eks|aks|gke)")
+	configCmd.Flags().StringVar(&confContext, "context", "", "Kubeconfig context name")
+
+	// Set the global default for Viper as well (in case user views config without setting it)
+	viper.SetDefault("provider", "eks")
+}
+
+/*
+var configCmd = &cobra.Command{
+	Use:   "config",
+	Short: "Configure the ingext tool",
+	Long:  `Sets configuration values in ~/.ingext/config.yaml`,
+	Run: func(cmd *cobra.Command, args []string) {
+		// Set values in Viper
+		// Note: cluster and namespace are already bound in root.go,
+		// but we need to explicitly set them if the user provided flags here to save them to file.
+
+		if cluster != "" {
+			viper.Set("cluster", cluster)
+		}
+		if namespace != "" {
+			viper.Set("namespace", namespace)
+		}
+		if confProvider != "" {
+			viper.Set("provider", confProvider)
+		}
+		if confContext != "" {
+			viper.Set("context", confContext)
+		}
+
+		if err := config.SaveConfig(); err != nil {
+			fmt.Printf("Error saving config: %v\n", err)
+			return
+		}
+
+		fmt.Println("Configuration saved.")
+	},
+}*/
+/*
+// 1. Define the 'view' subcommand
+var configViewCmd = &cobra.Command{
+	Use:   "view",
+	Short: "View current configuration settings",
+	Long:  "Displays the current configuration loaded from ~/.ingext/config.yaml and environment variables.",
+	Run: func(cmd *cobra.Command, args []string) {
+		// Use tabwriter to create a clean, aligned table
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+
+		fmt.Fprintln(w, "SETTING\tVALUE")
+		fmt.Fprintln(w, "-------\t-----")
+
+		// Retrieve values from Viper (checks flags, env vars, and config file)
+		fmt.Fprintf(w, "Cluster\t%s\n", viper.GetString("cluster"))
+		fmt.Fprintf(w, "Namespace\t%s\n", viper.GetString("namespace"))
+		fmt.Fprintf(w, "Provider\t%s\n", viper.GetString("provider"))
+		fmt.Fprintf(w, "Context\t%s\n", viper.GetString("context"))
+
+		// Access config file location
+		fmt.Fprintln(w, "-------\t-----")
+		fmt.Fprintf(w, "Config File\t%s\n", viper.ConfigFileUsed())
+
+		w.Flush()
+	},
+}
+
+func init() {
+	RootCmd.AddCommand(configCmd)
+
+	// Local flags for the config command
+	configCmd.Flags().StringVar(&confProvider, "provider", "eks", "Provider (eks|aks|gke)")
+	configCmd.Flags().StringVar(&confContext, "context", "", "Kubeconfig context name")
+	// Note: --cluster and --namespace are inherited from Root, but usually 'config' commands
+	// might want to enforce them or treat them differently. For now, we rely on the Root persistent flags.
+
+	// 2. Register 'view' as a child of 'config'
+	configCmd.AddCommand(configViewCmd)
+}*/

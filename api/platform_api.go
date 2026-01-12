@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/SecurityDo/ingext_api/client"
+	"github.com/SecurityDo/ingext_api/model"
 )
 
 // PlatformService provides helpers for calling platform_* endpoints.
@@ -40,136 +41,6 @@ func (s *PlatformService) call(function string, payload interface{}, out interfa
 }
 
 // Data source and sink configuration structures.
-type RedisConfig struct {
-	Host  string `json:"host"`
-	Port  int    `json:"port"`
-	Queue string `json:"queue"`
-}
-
-type RedisSourceConfig struct {
-	Redis *RedisConfig `json:"redis"`
-}
-
-type PluginSourceConfig struct {
-	Name        string `json:"name,omitempty"`
-	ID          string `json:"id,omitempty"`
-	Integration string `json:"integration,omitempty"`
-}
-
-type S3SourceConfig struct {
-	Plugin *PluginSourceConfig `json:"plugin,omitempty"`
-	Bucket string              `json:"bucket"`
-	Prefix string              `json:"prefix,omitempty"`
-	Begin  string              `json:"begin,omitempty"`
-	End    string              `json:"end,omitempty"`
-}
-
-type SyslogSourceConfig struct {
-	Path string `json:"path"`
-}
-
-type Tag struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
-}
-
-type DataSourceConfig struct {
-	Type   string              `json:"type"`
-	Name   string              `json:"name,omitempty"`
-	ID     string              `json:"id,omitempty"`
-	Format string              `json:"format,omitempty"`
-	Tags   []*Tag              `json:"tags,omitempty"`
-	Redis  *RedisSourceConfig  `json:"redis,omitempty"`
-	S3     *S3SourceConfig     `json:"s3,omitempty"`
-	Plugin *PluginSourceConfig `json:"plugin,omitempty"`
-	Syslog *SyslogSourceConfig `json:"syslog,omitempty"`
-}
-
-type RedisSinkConfig struct {
-	Redis *RedisConfig `json:"redis"`
-}
-
-type S3SinkConfig struct {
-	IntegrationID string              `json:"integrationID"`
-	Plugin        *PluginSourceConfig `json:"plugin,omitempty"`
-	Bucket        string              `json:"bucket"`
-	Compression   string              `json:"compression,omitempty"`
-	ObjectPath    string              `json:"objectPath"`
-}
-
-type LavaDBSinkConfig struct {
-	Tenant string `json:"tenant"`
-	Index  string `json:"index"`
-}
-
-type DataSinkConfig struct {
-	Type   string            `json:"type"`
-	Name   string            `json:"name"`
-	ID     string            `json:"id"`
-	Redis  *RedisSinkConfig  `json:"redis,omitempty"`
-	LavaDB *LavaDBSinkConfig `json:"lavaDB,omitempty"`
-	S3     *S3SinkConfig     `json:"s3,omitempty"`
-}
-
-type RouterConfig struct {
-	Name        string   `json:"name"`
-	ID          string   `json:"id"`
-	WorkerCount int      `json:"workerCount"`
-	PipeIDs     []string `json:"pipeIDs"`
-}
-
-type StreamPipeConfig struct {
-	Name           string   `json:"name"`
-	ID             string   `json:"id"`
-	RouterID       string   `json:"routerID"`
-	MatchAll       bool     `json:"matchAll"`
-	Selector       string   `json:"selector,omitempty"`
-	ProcessorNames []string `json:"processorNames"`
-	ChannelID      string   `json:"channelID,omitempty"`
-	SinkIDs        []string `json:"sinkIDs,omitempty"`
-}
-
-type ChannelConfig struct {
-	Name    string   `json:"name"`
-	ID      string   `json:"id"`
-	SinkIDs []string `json:"sinkIDs"`
-}
-
-type RouterInput struct {
-	RouterID string `json:"routerID"`
-	SourceID string `json:"sourceID"`
-}
-
-type PluginNotification struct {
-	Severity  string `json:"severity"`
-	Subject   string `json:"subject"`
-	ID        string `json:"id,omitempty"`
-	Source    string `json:"source,omitempty"`
-	CreatedOn string `json:"createdOn,omitempty"`
-	Message   string `json:"message"`
-}
-
-type ComponentErrorState struct {
-	ID     string                `json:"id"`
-	Name   string                `json:"name"`
-	Errors []*PluginNotification `json:"errors"`
-	Alerts []*PluginNotification `json:"alerts"`
-}
-
-type LogEvent struct {
-	Source    string    `json:"source,omitempty"`
-	Timestamp time.Time `json:"timestamp,omitempty"`
-	Msg       string    `json:"msg,omitempty"`
-}
-
-type ComponentInfo struct {
-	ID     string                `json:"id"`
-	Name   string                `json:"name"`
-	Errors []*PluginNotification `json:"errors"`
-	Alerts []*PluginNotification `json:"alerts"`
-	State  json.RawMessage       `json:"state"`
-	Logs   []*LogEvent           `json:"logs"`
-}
 
 type SourceSetRouterReq struct {
 	RouterID     string `json:"routerID"`
@@ -187,8 +58,8 @@ type RouterDeleteSourceReq struct {
 }
 
 type RouterAddPipeReq struct {
-	RouterID   string            `json:"routerID"`
-	PipeConfig *StreamPipeConfig `json:"pipeConfig"`
+	RouterID   string                  `json:"routerID"`
+	PipeConfig *model.StreamPipeConfig `json:"pipeConfig"`
 }
 
 type RouterDeletePipeReq struct {
@@ -202,8 +73,8 @@ type RouterUpdatePipesReq struct {
 }
 
 type PipeUpdateReq struct {
-	RouterID   string            `json:"routerID"`
-	PipeConfig *StreamPipeConfig `json:"pipeConfig"`
+	RouterID   string                  `json:"routerID"`
+	PipeConfig *model.StreamPipeConfig `json:"pipeConfig"`
 }
 
 type FPLProcessorValidateRequest struct {
@@ -248,7 +119,7 @@ type ProcessorTailReq struct {
 }
 
 type ProcessorTailResponse struct {
-	Entries []*LogEvent `json:"entries"`
+	Entries []*model.LogEvent `json:"entries"`
 }
 
 type ProcessorPipesReq struct {
@@ -303,8 +174,8 @@ type GetComponentStateResponse struct {
 }
 
 type SetComponentTagsReq struct {
-	ID   string `json:"id"`
-	Tags []*Tag `json:"tags"`
+	ID   string      `json:"id"`
+	Tags []model.Tag `json:"tags"`
 }
 
 type PluginTailReq struct {
@@ -321,7 +192,7 @@ type ListComponentErrorReq struct {
 }
 
 type ListComponentErrorResponse struct {
-	Errors []*PluginNotification `json:"errors"`
+	Errors []*model.PluginNotification `json:"errors"`
 }
 
 type SourceReloadReq struct {
@@ -420,6 +291,7 @@ type DeviceMetricsResponse struct {
 	Metrics []*ImportStatStat `json:"metrics,omitempty"`
 }
 
+/*
 type Integration struct {
 	ID          string          `json:"id"`
 	Name        string          `json:"name"`
@@ -441,6 +313,10 @@ type GenericDAORequest[T any] struct {
 	Action string                    `json:"action"`
 	Args   *GenericDAORequestArgs[T] `json:"args,omitempty"`
 }
+
+type GenericDaoAddResponse struct {
+	ID string                    `json:"id"`
+}*/
 
 type ClientSecret struct {
 	ClientSecret string `json:"clientSecret"`
@@ -533,19 +409,19 @@ type ListPluginsResponse struct {
 }
 
 type ListConfigsResponse struct {
-	Sources      []*DataSourceConfig    `json:"sources"`
-	Sinks        []*DataSinkConfig      `json:"sinks"`
-	Routers      []*RouterConfig        `json:"routers"`
-	Pipes        []*StreamPipeConfig    `json:"pipes"`
-	Channels     []*ChannelConfig       `json:"channels"`
-	Connections  []*RouterInput         `json:"connections"`
-	Integrations []*Integration         `json:"integrations"`
-	Errors       []*PluginNotification  `json:"errors"`
-	ErrorStates  []*ComponentErrorState `json:"errorStates"`
+	Sources      []*model.DataSourceConfig    `json:"sources"`
+	Sinks        []*model.DataSinkConfig      `json:"sinks"`
+	Routers      []*model.RouterConfig        `json:"routers"`
+	Pipes        []*model.StreamPipeConfig    `json:"pipes"`
+	Channels     []*model.ChannelConfig       `json:"channels"`
+	Connections  []*model.RouterInput         `json:"connections"`
+	Integrations []*model.Integration         `json:"integrations"`
+	Errors       []*model.PluginNotification  `json:"errors"`
+	ErrorStates  []*model.ComponentErrorState `json:"errorStates"`
 }
 
 type DataSourceEntryResponse struct {
-	Entry *DataSourceConfig `json:"entry"`
+	Entry *model.DataSourceConfig `json:"entry"`
 }
 
 type AddDataSourceResponse struct {
@@ -555,20 +431,24 @@ type AddDataSourceResponse struct {
 }
 
 type DataSinkEntryResponse struct {
-	Entry *DataSinkConfig `json:"entry"`
+	Entry *model.DataSinkConfig `json:"entry"`
 }
 
 type AddDataSinkResponse struct {
 	ID string `json:"id"`
 }
 
+type AddIntegrationResponse struct {
+	ID string `json:"id"`
+}
+
 type ListDataSinkResponse struct {
-	Entries []*DataSinkConfig `json:"entries"`
+	Entries []*model.DataSinkConfig `json:"entries"`
 }
 
 type RouterEntryResponse struct {
-	Entry *RouterConfig       `json:"entry"`
-	Pipes []*StreamPipeConfig `json:"pipes"`
+	Entry *model.RouterConfig       `json:"entry"`
+	Pipes []*model.StreamPipeConfig `json:"pipes"`
 }
 
 type AddRouterResponse struct {
@@ -576,7 +456,7 @@ type AddRouterResponse struct {
 }
 
 type ChannelEntryResponse struct {
-	Entry *ChannelConfig `json:"entry"`
+	Entry *model.ChannelConfig `json:"entry"`
 }
 
 type AddChannelResponse struct {
@@ -621,8 +501,8 @@ type ImportDeviceDAORequest struct {
 }
 
 type IntegrationDAORequestArgs struct {
-	Id    string       `json:"id,omitempty"`
-	Entry *Integration `json:"entry,omitempty"`
+	Id    string             `json:"id,omitempty"`
+	Entry *model.Integration `json:"entry,omitempty"`
 }
 
 type IntegrationDAORequest struct {
@@ -631,12 +511,89 @@ type IntegrationDAORequest struct {
 }
 
 type IntegrationDAOResponse struct {
-	Entry   *Integration   `json:"entry,omitempty"`
-	Entries []*Integration `json:"entries,omitempty"`
+	Entry   *model.Integration   `json:"entry,omitempty"`
+	Entries []*model.Integration `json:"entries,omitempty"`
 }
 
 type RouterAddPipeResponse struct {
 	ID string `json:"id"`
+}
+
+type GenericDaoRequestArgs[T any] struct {
+	Id    string `json:"id,omitempty"`
+	Entry T      `json:"entry,omitempty"`
+	Flag  bool   `json:"flag"`
+}
+
+type GenericDaoRequest[T any] struct {
+	Action string                    `json:"action"`
+	Args   *GenericDaoRequestArgs[T] `json:"args"`
+}
+
+type GenericDAORequestArgs[T any] struct {
+	Id    string `json:"id,omitempty"`
+	Entry *T     `json:"entry,omitempty"`
+	Flag  bool   `json:"flag,omitempty"`
+}
+
+type GenericDAORequest[T any] struct {
+	Action string                    `json:"action"`
+	Args   *GenericDAORequestArgs[T] `json:"args,omitempty"`
+}
+
+type GenericDaoAddResponse struct {
+	ID string `json:"id"`
+}
+
+type GenericDaoListResponse[T any] struct {
+	Entries []*T `json:"entries"`
+}
+
+func (s *PlatformService) AddAssumedRole(name string, roleARN string, externalID string) (id string, err error) {
+	request := &GenericDAORequest[model.InstanceRole]{
+		Action: "add",
+		Args: &GenericDAORequestArgs[model.InstanceRole]{
+			//Id:    args.Id,
+			Entry: &model.InstanceRole{
+				DisplayName: name,
+				RoleARN:     roleARN,
+				ExternalID:  externalID,
+			},
+		},
+	}
+	var resp GenericDaoAddResponse
+	if err := s.call("platform_instancerole_dao", request, &resp); err != nil {
+		return "", err
+	}
+	return resp.ID, nil
+
+}
+
+func (s *PlatformService) DeleteAssumedRole(roleID string) (err error) {
+	request := &GenericDAORequest[model.InstanceRole]{
+		Action: "delete",
+		Args: &GenericDAORequestArgs[model.InstanceRole]{
+			Id: roleID,
+		},
+	}
+	//var resp GenericDaoAddResponse
+	if err := s.call("platform_instancerole_dao", request, nil); err != nil {
+		return err
+	}
+	return nil
+
+}
+
+func (s *PlatformService) ListAssumedRole() (roles []*model.InstanceRole, err error) {
+	request := &GenericDAORequest[model.InstanceRole]{
+		Action: "list",
+	}
+	var resp GenericDaoListResponse[model.InstanceRole]
+	if err := s.call("platform_instancerole_dao", request, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Entries, nil
+
 }
 
 // ListPlugins fetches the available platform plugins.
@@ -658,10 +615,10 @@ func (s *PlatformService) ListConfigs() (*ListConfigsResponse, error) {
 }
 
 // GetDataSource retrieves a data source by id.
-func (s *PlatformService) GetDataSource(id string) (*DataSourceConfig, error) {
-	req := &GenericDAORequest[DataSourceConfig]{
+func (s *PlatformService) GetDataSource(id string) (*model.DataSourceConfig, error) {
+	req := &GenericDAORequest[model.DataSourceConfig]{
 		Action: "get",
-		Args: &GenericDAORequestArgs[DataSourceConfig]{
+		Args: &GenericDAORequestArgs[model.DataSourceConfig]{
 			Id: id,
 		},
 	}
@@ -673,10 +630,10 @@ func (s *PlatformService) GetDataSource(id string) (*DataSourceConfig, error) {
 }
 
 // AddDataSource creates a new data source entry.
-func (s *PlatformService) AddDataSource(entry *DataSourceConfig) (*AddDataSourceResponse, error) {
-	req := &GenericDAORequest[DataSourceConfig]{
+func (s *PlatformService) AddDataSource(entry *model.DataSourceConfig) (*AddDataSourceResponse, error) {
+	req := &GenericDAORequest[model.DataSourceConfig]{
 		Action: "add",
-		Args: &GenericDAORequestArgs[DataSourceConfig]{
+		Args: &GenericDAORequestArgs[model.DataSourceConfig]{
 			Entry: entry,
 		},
 	}
@@ -689,9 +646,9 @@ func (s *PlatformService) AddDataSource(entry *DataSourceConfig) (*AddDataSource
 
 // DeleteDataSource removes a data source by id.
 func (s *PlatformService) DeleteDataSource(id string) error {
-	req := &GenericDAORequest[DataSourceConfig]{
+	req := &GenericDAORequest[model.DataSourceConfig]{
 		Action: "delete",
-		Args: &GenericDAORequestArgs[DataSourceConfig]{
+		Args: &GenericDAORequestArgs[model.DataSourceConfig]{
 			Id: id,
 		},
 	}
@@ -699,10 +656,10 @@ func (s *PlatformService) DeleteDataSource(id string) error {
 }
 
 // GetDataSink retrieves a data sink by id.
-func (s *PlatformService) GetDataSink(id string) (*DataSinkConfig, error) {
-	req := &GenericDAORequest[DataSinkConfig]{
+func (s *PlatformService) GetDataSink(id string) (*model.DataSinkConfig, error) {
+	req := &GenericDAORequest[model.DataSinkConfig]{
 		Action: "get",
-		Args: &GenericDAORequestArgs[DataSinkConfig]{
+		Args: &GenericDAORequestArgs[model.DataSinkConfig]{
 			Id: id,
 		},
 	}
@@ -714,10 +671,10 @@ func (s *PlatformService) GetDataSink(id string) (*DataSinkConfig, error) {
 }
 
 // AddDataSink creates a new data sink entry.
-func (s *PlatformService) AddDataSink(entry *DataSinkConfig) (*AddDataSinkResponse, error) {
-	req := &GenericDAORequest[DataSinkConfig]{
+func (s *PlatformService) AddDataSink(entry *model.DataSinkConfig) (*AddDataSinkResponse, error) {
+	req := &GenericDAORequest[model.DataSinkConfig]{
 		Action: "add",
-		Args: &GenericDAORequestArgs[DataSinkConfig]{
+		Args: &GenericDAORequestArgs[model.DataSinkConfig]{
 			Entry: entry,
 		},
 	}
@@ -730,9 +687,9 @@ func (s *PlatformService) AddDataSink(entry *DataSinkConfig) (*AddDataSinkRespon
 
 // DeleteDataSink removes a data sink by id.
 func (s *PlatformService) DeleteDataSink(id string) error {
-	req := &GenericDAORequest[DataSinkConfig]{
+	req := &GenericDAORequest[model.DataSinkConfig]{
 		Action: "delete",
-		Args: &GenericDAORequestArgs[DataSinkConfig]{
+		Args: &GenericDAORequestArgs[model.DataSinkConfig]{
 			Id: id,
 		},
 	}
@@ -740,8 +697,8 @@ func (s *PlatformService) DeleteDataSink(id string) error {
 }
 
 // ListDataSinks lists configured data sinks.
-func (s *PlatformService) ListDataSinks() ([]*DataSinkConfig, error) {
-	req := &GenericDAORequest[DataSinkConfig]{
+func (s *PlatformService) ListDataSinks() ([]*model.DataSinkConfig, error) {
+	req := &GenericDAORequest[model.DataSinkConfig]{
 		Action: "list",
 	}
 	var resp ListDataSinkResponse
@@ -753,9 +710,9 @@ func (s *PlatformService) ListDataSinks() ([]*DataSinkConfig, error) {
 
 // GetRouter loads a router and its pipes by id.
 func (s *PlatformService) GetRouter(id string) (*RouterEntryResponse, error) {
-	req := &GenericDAORequest[RouterConfig]{
+	req := &GenericDAORequest[model.RouterConfig]{
 		Action: "get",
-		Args: &GenericDAORequestArgs[RouterConfig]{
+		Args: &GenericDAORequestArgs[model.RouterConfig]{
 			Id: id,
 		},
 	}
@@ -767,10 +724,10 @@ func (s *PlatformService) GetRouter(id string) (*RouterEntryResponse, error) {
 }
 
 // AddRouter registers a new router.
-func (s *PlatformService) AddRouter(entry *RouterConfig) (*AddRouterResponse, error) {
-	req := &GenericDAORequest[RouterConfig]{
+func (s *PlatformService) AddRouter(entry *model.RouterConfig) (*AddRouterResponse, error) {
+	req := &GenericDAORequest[model.RouterConfig]{
 		Action: "add",
-		Args: &GenericDAORequestArgs[RouterConfig]{
+		Args: &GenericDAORequestArgs[model.RouterConfig]{
 			Entry: entry,
 		},
 	}
@@ -783,9 +740,9 @@ func (s *PlatformService) AddRouter(entry *RouterConfig) (*AddRouterResponse, er
 
 // DeleteRouter removes a router by id.
 func (s *PlatformService) DeleteRouter(id string) error {
-	req := &GenericDAORequest[RouterConfig]{
+	req := &GenericDAORequest[model.RouterConfig]{
 		Action: "delete",
-		Args: &GenericDAORequestArgs[RouterConfig]{
+		Args: &GenericDAORequestArgs[model.RouterConfig]{
 			Id: id,
 		},
 	}
@@ -793,10 +750,10 @@ func (s *PlatformService) DeleteRouter(id string) error {
 }
 
 // GetChannel returns a channel configuration by id.
-func (s *PlatformService) GetChannel(id string) (*ChannelConfig, error) {
-	req := &GenericDAORequest[ChannelConfig]{
+func (s *PlatformService) GetChannel(id string) (*model.ChannelConfig, error) {
+	req := &GenericDAORequest[model.ChannelConfig]{
 		Action: "get",
-		Args: &GenericDAORequestArgs[ChannelConfig]{
+		Args: &GenericDAORequestArgs[model.ChannelConfig]{
 			Id: id,
 		},
 	}
@@ -808,10 +765,10 @@ func (s *PlatformService) GetChannel(id string) (*ChannelConfig, error) {
 }
 
 // AddChannel creates a new channel entry.
-func (s *PlatformService) AddChannel(entry *ChannelConfig) (*AddChannelResponse, error) {
-	req := &GenericDAORequest[ChannelConfig]{
+func (s *PlatformService) AddChannel(entry *model.ChannelConfig) (*AddChannelResponse, error) {
+	req := &GenericDAORequest[model.ChannelConfig]{
 		Action: "add",
-		Args: &GenericDAORequestArgs[ChannelConfig]{
+		Args: &GenericDAORequestArgs[model.ChannelConfig]{
 			Entry: entry,
 		},
 	}
@@ -824,9 +781,9 @@ func (s *PlatformService) AddChannel(entry *ChannelConfig) (*AddChannelResponse,
 
 // DeleteChannel removes the specified channel configuration.
 func (s *PlatformService) DeleteChannel(id string) error {
-	req := &GenericDAORequest[ChannelConfig]{
+	req := &GenericDAORequest[model.ChannelConfig]{
 		Action: "delete",
-		Args: &GenericDAORequestArgs[ChannelConfig]{
+		Args: &GenericDAORequestArgs[model.ChannelConfig]{
 			Id: id,
 		},
 	}
@@ -1036,9 +993,9 @@ func (s *PlatformService) ClearComponentError(id string) error {
 }
 
 // GetComponentInfo loads detailed component information including logs and alerts.
-func (s *PlatformService) GetComponentInfo(id string) (*ComponentInfo, error) {
+func (s *PlatformService) GetComponentInfo(id string) (*model.ComponentInfo, error) {
 	req := &GetComponentInfoReq{ID: id}
-	var resp ComponentInfo
+	var resp model.ComponentInfo
 	if err := s.call("platform_get_component_info", req, &resp); err != nil {
 		return nil, err
 	}
@@ -1149,7 +1106,7 @@ func (s *PlatformService) GetImportDeviceMetrics(req *DeviceMetricsRequest) (*De
 }
 
 // ListIntegrations lists all platform integrations.
-func (s *PlatformService) ListIntegrations() ([]*Integration, error) {
+func (s *PlatformService) ListIntegrations() ([]*model.Integration, error) {
 	req := &IntegrationDAORequest{Action: "list"}
 	var resp IntegrationDAOResponse
 	if err := s.call("platform_integration_dao", req, &resp); err != nil {
@@ -1159,7 +1116,7 @@ func (s *PlatformService) ListIntegrations() ([]*Integration, error) {
 }
 
 // GetIntegration fetches an integration by id.
-func (s *PlatformService) GetIntegration(id string) (*Integration, error) {
+func (s *PlatformService) GetIntegration(id string) (*model.Integration, error) {
 	req := &IntegrationDAORequest{
 		Action: "get",
 		Args:   &IntegrationDAORequestArgs{Id: id},
@@ -1172,16 +1129,21 @@ func (s *PlatformService) GetIntegration(id string) (*Integration, error) {
 }
 
 // AddIntegration registers a new integration entry.
-func (s *PlatformService) AddIntegration(entry *Integration) error {
+func (s *PlatformService) AddIntegration(entry *model.Integration) (id string, err error) {
 	req := &IntegrationDAORequest{
 		Action: "add",
 		Args:   &IntegrationDAORequestArgs{Entry: entry},
 	}
-	return s.call("platform_integration_dao", req, nil)
+	var resp AddIntegrationResponse
+	err = s.call("platform_integration_dao", req, &resp)
+	if err != nil {
+		return "", err
+	}
+	return resp.ID, nil
 }
 
 // UpdateIntegration updates an existing integration.
-func (s *PlatformService) UpdateIntegration(entry *Integration) error {
+func (s *PlatformService) UpdateIntegration(entry *model.Integration) error {
 	req := &IntegrationDAORequest{
 		Action: "update",
 		Args:   &IntegrationDAORequestArgs{Entry: entry},
