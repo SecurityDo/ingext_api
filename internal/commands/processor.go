@@ -9,8 +9,10 @@ import (
 )
 
 var (
-	procName string
-	procFile string
+	procName    string
+	procContent string
+	procType    string // Default to "parser" if not specified
+	procDesc    string // Optional description for the processor
 )
 
 var processorCmd = &cobra.Command{
@@ -21,29 +23,32 @@ var processorCmd = &cobra.Command{
 var processorAddCmd = &cobra.Command{
 	Use:   "add",
 	Short: "Add a processor",
-	//Run: func(cmd *cobra.Command, args []string) {
-	//	fmt.Printf("Adding processor %s from file %s\n", procName, procFile)
-	//},
 	// Example usage:
-	// 1. ingext processor add --name my-proc --file ./my-script.js
-	// 2. cat my-script.js | ingext processor add --name my-proc --file -
+	// 1. ingext processor add --name my-proc --content "@./my-script.js"
+	// 2. ingext processor add --name my-proc --content "function process() { ... }"
+	// 3. cat my-script.js | ingext processor add --name my-proc --content -
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var content []byte
-		var err error
+		var content string
+		//var err error
 
 		// CHECK: Is the user asking to read from Stdin?
-		if procFile == "-" {
+		if procContent == "-" {
 			// Read from the pipe
-			content, err = io.ReadAll(cmd.InOrStdin())
+			b, err := io.ReadAll(cmd.InOrStdin())
 			if err != nil {
 				return fmt.Errorf("failed to read from stdin: %w", err)
 			}
-		} else {
+			content = string(b)
+		} else if len(procContent) > 1 && procContent[0] == '@' {
+			filePath := procContent[1:]
 			// Read from the file path provided
-			content, err = os.ReadFile(procFile)
+			b, err := os.ReadFile(filePath)
 			if err != nil {
-				return fmt.Errorf("failed to read file '%s': %w", procFile, err)
+				return fmt.Errorf("failed to read file '%s': %w", filePath, err)
 			}
+			content = string(b)
+		} else {
+			content = procContent
 		}
 
 		if len(content) == 0 {
@@ -61,8 +66,8 @@ var processorAddCmd = &cobra.Command{
 	},
 }
 
-// ingext processor add --name filter --file ./scripts/filter.js
-// echo "function process() { ... }" | ingext processor add --name filter --file -
+// ingext processor add --name filter --content "@./scripts/filter.js"
+// echo "function process() { ... }" | ingext processor add --name filter --content -
 func init() {
 	RootCmd.AddCommand(processorCmd)
 	processorCmd.AddCommand(processorAddCmd) // Add del similarly
@@ -71,6 +76,10 @@ func init() {
 	//processorAddCmd.Flags().StringVar(&procFile, "file", "", "Processor file path")
 
 	processorAddCmd.Flags().StringVar(&procName, "name", "", "Processor name")
-	processorAddCmd.Flags().StringVar(&procFile, "file", "", "Processor file path (use '-' for stdin)")
-	_ = processorAddCmd.MarkFlagRequired("file")
+	processorAddCmd.Flags().StringVar(&procContent, "content", "", "Processor content or file path (use '-' for stdin)")
+	processorAddCmd.Flags().StringVar(&procType, "type", "parser", "Processor type (parser|receiver|packer|report)")
+	processorAddCmd.Flags().StringVar(&procDesc, "desc", "", "Processor description (optional)")
+
+	_ = processorAddCmd.MarkFlagRequired("name")
+	_ = processorAddCmd.MarkFlagRequired("content")
 }

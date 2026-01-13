@@ -429,6 +429,9 @@ type AddDataSourceResponse struct {
 	Secret json.RawMessage `json:"secret,omitempty"`
 	URL    string          `json:"url,omitempty"`
 }
+type ListDataSourceResponse struct {
+	Entries []*model.DataSourceConfig `json:"entries"`
+}
 
 type DataSinkEntryResponse struct {
 	Entry *model.DataSinkConfig `json:"entry"`
@@ -464,11 +467,11 @@ type AddChannelResponse struct {
 }
 
 type ProcessorEntryResponse struct {
-	Entry json.RawMessage `json:"entry"`
+	Entry *model.FPLScript `json:"entry"`
 }
 
 type ListProcessorsResponse struct {
-	Entries []json.RawMessage `json:"entries"`
+	Entries []*model.FPLScript `json:"entries"`
 }
 
 type GenericOKResponse struct {
@@ -655,6 +658,18 @@ func (s *PlatformService) DeleteDataSource(id string) error {
 	return s.call("platform_datasource_dao", req, nil)
 }
 
+func (s *PlatformService) ListDataSource() (entries []*model.DataSourceConfig, err error) {
+	req := &GenericDAORequest[model.DataSourceConfig]{
+		Action: "list",
+	}
+
+	var resp ListDataSourceResponse
+	if err := s.call("platform_datasource_dao", req, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Entries, nil
+}
+
 // GetDataSink retrieves a data sink by id.
 func (s *PlatformService) GetDataSink(id string) (*model.DataSinkConfig, error) {
 	req := &GenericDAORequest[model.DataSinkConfig]{
@@ -697,7 +712,7 @@ func (s *PlatformService) DeleteDataSink(id string) error {
 }
 
 // ListDataSinks lists configured data sinks.
-func (s *PlatformService) ListDataSinks() ([]*model.DataSinkConfig, error) {
+func (s *PlatformService) ListDataSink() ([]*model.DataSinkConfig, error) {
 	req := &GenericDAORequest[model.DataSinkConfig]{
 		Action: "list",
 	}
@@ -791,8 +806,8 @@ func (s *PlatformService) DeleteChannel(id string) error {
 }
 
 // ListProcessors returns all configured processors.
-func (s *PlatformService) ListProcessors() ([]json.RawMessage, error) {
-	req := &GenericDAORequest[json.RawMessage]{
+func (s *PlatformService) ListProcessors() ([]*model.FPLScript, error) {
+	req := &GenericDAORequest[model.FPLScript]{
 		Action: "list",
 	}
 	var resp ListProcessorsResponse
@@ -818,22 +833,22 @@ func (s *PlatformService) GetProcessor(name string) (json.RawMessage, error) {
 }
 
 // AddProcessor registers a new processor definition.
-func (s *PlatformService) AddProcessor(entry json.RawMessage) error {
-	req := &GenericDAORequest[json.RawMessage]{
+func (s *PlatformService) AddProcessor(entry *model.FPLScript) error {
+	req := &GenericDAORequest[model.FPLScript]{
 		Action: "add",
-		Args: &GenericDAORequestArgs[json.RawMessage]{
-			Entry: &entry,
+		Args: &GenericDAORequestArgs[model.FPLScript]{
+			Entry: entry,
 		},
 	}
 	return s.call("platform_processor_dao", req, nil)
 }
 
 // UpdateProcessor modifies an existing processor definition.
-func (s *PlatformService) UpdateProcessor(entry json.RawMessage) error {
-	req := &GenericDAORequest[json.RawMessage]{
+func (s *PlatformService) UpdateProcessor(entry *model.FPLScript) error {
+	req := &GenericDAORequest[model.FPLScript]{
 		Action: "update",
-		Args: &GenericDAORequestArgs[json.RawMessage]{
-			Entry: &entry,
+		Args: &GenericDAORequestArgs[model.FPLScript]{
+			Entry: entry,
 		},
 	}
 	return s.call("platform_processor_dao", req, nil)
@@ -841,9 +856,9 @@ func (s *PlatformService) UpdateProcessor(entry json.RawMessage) error {
 
 // DeleteProcessor removes a processor by name.
 func (s *PlatformService) DeleteProcessor(name string) error {
-	req := &GenericDAORequest[json.RawMessage]{
+	req := &GenericDAORequest[model.FPLScript]{
 		Action: "delete",
-		Args: &GenericDAORequestArgs[json.RawMessage]{
+		Args: &GenericDAORequestArgs[model.FPLScript]{
 			Id: name,
 		},
 	}
@@ -873,6 +888,7 @@ func (s *PlatformService) SetDataSourceRouter(req *SourceSetRouterReq) error {
 	return s.call("platform_source_set_router", req, nil)
 }
 
+/*
 // AddRouterSource attaches a data source to a router. Deprecated in the backend but kept for compatibility.
 func (s *PlatformService) AddRouterSource(req *RouterAddSourceReq) error {
 	return s.call("platform_router_add_source", req, nil)
@@ -881,7 +897,7 @@ func (s *PlatformService) AddRouterSource(req *RouterAddSourceReq) error {
 // DeleteRouterSource detaches a data source from a router. Deprecated in the backend but kept for compatibility.
 func (s *PlatformService) DeleteRouterSource(req *RouterDeleteSourceReq) error {
 	return s.call("platform_router_delete_source", req, nil)
-}
+}*/
 
 // AddRouterPipe creates a new pipe under a router.
 func (s *PlatformService) AddRouterPipe(req *RouterAddPipeReq) (*RouterAddPipeResponse, error) {

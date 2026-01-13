@@ -110,8 +110,10 @@ type DataSinkConfig struct {
 
 	Redis *RedisSinkConfig `json:"redis,omitempty"`
 	// LavaDB *LavaDBSinkConfig `json:"lavaDB,omitempty"`
-	S3       *S3SinkConfig        `json:"s3,omitempty"`
-	Hec      *HecSinkConfig       `json:"hec,omitempty"`
+	S3      *S3SinkConfig      `json:"s3,omitempty"`
+	Hec     *HecSinkConfig     `json:"hec,omitempty"`
+	Webhook *WebhookSinkConfig `json:"webhook,omitempty"`
+
 	Kinesis  *KinesisSinkConfig   `json:"kinesis,omitempty"`
 	Firehose *FirehoseSinkConfig  `json:"firehose,omitempty"`
 	Lambda   *AWSLambdaSinkConfig `json:"lambda,omitempty"`

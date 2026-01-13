@@ -1,0 +1,32 @@
+package api
+
+import (
+	"fmt"
+
+	ingextAPI "github.com/SecurityDo/ingext_api/api"
+	model "github.com/SecurityDo/ingext_api/model"
+)
+
+func (c *Client) AddProcessor(name, content, processorType, description string) (err error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	if processorType == "" {
+		processorType = "parser" // Default to JavaScript if not specified
+	}
+
+	entry := &model.FPLScript{
+		Name:        name,
+		ScriptText:  content,
+		Type:        processorType,
+		Description: description,
+	}
+
+	err = platformService.AddProcessor(entry)
+
+	if err != nil {
+		c.Logger.Error("failed to add processor", "error", err)
+		return fmt.Errorf("failed to add processor: %s", err.Error())
+	}
+	return nil
+}
