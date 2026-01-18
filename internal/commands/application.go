@@ -95,7 +95,7 @@ var appTemplateUnInstallCmd = &cobra.Command{
 			return err
 		}
 
-		cmd.PrintErrln("Application instance added successfully")
+		cmd.PrintErrln("Application instance removed successfully")
 		return nil
 	},
 }

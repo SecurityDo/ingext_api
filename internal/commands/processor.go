@@ -102,7 +102,7 @@ var processorDelCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		cmd.PrintErrln("Processor added successfully")
+		cmd.PrintErrln("Processor deleted successfully")
 		return nil
 	},
 }
@@ -118,7 +118,7 @@ func init() {
 
 	processorAddCmd.Flags().StringVar(&procName, "name", "", "Processor name")
 	processorAddCmd.Flags().StringVar(&procContent, "content", "", "Processor content or file path (use '-' for stdin)")
-	processorAddCmd.Flags().StringVar(&procType, "type", "fpl_processor", "Processor type (fpl_processor|fpl_receiver|fpl_packer|fpl_report)")
+	processorAddCmd.Flags().StringVar(&procType, "type", "parser", "Processor type (parser|fpl_receiver|fpl_packer|fpl_report)")
 	processorAddCmd.Flags().StringVar(&procDesc, "desc", "", "Processor description (optional)")
 
 	_ = processorAddCmd.MarkFlagRequired("name")

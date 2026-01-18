@@ -69,7 +69,7 @@ var addRouterCmd = &cobra.Command{
 	Use:   "add-router",
 	Short: "Add a stream router",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("Deleting stream router...")
+		fmt.Println("Adding stream router...")
 
 		resourceID, err := AppAPI.AddSimpleRouter(processorName, routerName)
 		if err != nil {
@@ -208,7 +208,7 @@ var addSinkCmd = &cobra.Command{
 	Use:   "add-sink",
 	Short: "Add a stream sink",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("Adding stream source...")
+		fmt.Println("Adding stream sink...")
 		// Just call the global interface
 		sink := &model.DataSinkConfig{
 			Type: sinkType,
@@ -273,6 +273,7 @@ func init() {
 	addSinkCmd.Flags().StringVar(&resourceName, "name", "", "Name")
 	addSinkCmd.Flags().StringVar(&url, "url", "", "URL for HEC sink")
 	addSinkCmd.Flags().StringVar(&token, "token", "", "Token")
+	//addSinkCmd.Flags().StringVar(&integrationID, "integration-id", "", "Integration ID")
 
 	_ = addSinkCmd.MarkFlagRequired("sink-type")
 	_ = addSinkCmd.MarkFlagRequired("name")

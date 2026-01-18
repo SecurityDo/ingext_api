@@ -185,7 +185,7 @@ var integrationListCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(integrationCmd)
-	integrationCmd.AddCommand(integrationAddCmd, integrationDelCmd)
+	integrationCmd.AddCommand(integrationAddCmd, integrationDelCmd, integrationListCmd)
 
 	// Flags
 	integrationAddCmd.Flags().StringVar(&integType, "integration", "", "Integration type")

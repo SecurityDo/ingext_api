@@ -59,66 +59,92 @@ export INGEXT_NAMESPACE=ingext
 
 ## Usage
 
-### 1. Authentication (`auth`)
+### Authentication (`auth`)
 
 Manage users and access tokens.
 
 ```bash
-# Add a new user
-ingext user add --name foo@gmail.com --role admin --displayName "Foo Bar"
+# Users
+ingext auth add-user --name foo@gmail.com --role admin --displayName "Foo Bar" --org ingext
+ingext auth del-user --name foo@gmail.com
+ingext auth list-user
 
-# Add an API token for a user
-ingext user del --name foo@gmail.com
-
+# API tokens
+ingext auth add-token --name ci-bot --role analyst --displayName "CI Bot"
+ingext auth del-token --name ci-bot
+ingext auth list-token
 ```
 
-### 2. Streams (`stream`)
+### Streams (`stream`)
 
-Manage data pipelines (Sources, Sinks, Routers).
+Manage data pipelines (sources, sinks, routers).
 
 ```bash
-# Add a stream source
-ingext stream add source --name clickstream-v1
+# Sources
+ingext stream add-source --name clickstream-v1 --source-type plugin --integration-id <integration-id>
+ingext stream add-source --name hec-ingest --source-type hec --url https://hec.example --token <token>
+ingext stream list-source
+ingext stream del-source --id <source-id>
 
-# Add a stream sink
-ingext stream add sink --name s3-archive
+# Sinks
+ingext stream add-sink --name datalake-out --sink-type datalake --integration-id <integration-id>
+ingext stream add-sink --name webhook-out --sink-type webhook --url https://example.com/hook
+ingext stream list-sink
+ingext stream del-sink --id <sink-id>
 
+# Routers and wiring
+ingext stream add-router --processor my-processor --router-name main-router
+ingext stream connect-router --source-id <source-id> --router-id <router-id>
+ingext stream connect-sink --router-id <router-id> --sink-id <sink-id>
 ```
 
-### 3. Processors (`processor`)
+### Processors (`processor`)
 
-Deploy data processors. This command supports piping input via `-`.
+Deploy data processors. Supports piping input via `-` and file loading via `@path`.
 
 ```bash
-# Deploy from a local file
-ingext processor add --name filter-logic --file ./scripts/filter.js
-
-# Deploy from a pipe (stdin)
-cat ./scripts/transform.js | ingext processor add --name transform-logic --file -
-
+ingext processor add --name filter-logic --content @./scripts/filter.js --type parser
+cat ./scripts/transform.js | ingext processor add --name transform-logic --content -
+ingext processor list
+ingext processor del --name filter-logic
 ```
 
-### 4. Integrations (`integration`)
+### Integrations (`integration`)
 
 Manage third-party connections.
 
 ```bash
-ingext integration add --integration slack --name alert-bot
-ingext integration del --name alert-bot
-
+ingext integration add --integration slack --name alert-bot --description "Send alerts to Slack"
+ingext integration list
+ingext integration del --id <integration-id>
 ```
 
-### 5. Data Lake (`lake`)
+### Data Lake (`datalake`)
 
-Manage storage indexing.
+Manage datalakes and their indexes.
 
 ```bash
-ingext lake add index \
-  --storage s3 \
-  --bucket my-datalake \
-  --prefix /events/raw \
-  --storageaccount my-account
+ingext datalake add --datalake my-datalake --managed --integration <integration-id>
+ingext datalake list
+ingext datalake add-index --datalake my-datalake --index events --schema "ingext default"
+ingext datalake list-index --datalake my-datalake
+ingext datalake del-index --datalake my-datalake --index events
+```
 
+### EKS Pod Identity Roles (`eks`)
+
+```bash
+ingext eks add-assumed-role --name ingest-role --roleArn <role-arn> [--externalId <external-id>]
+ingext eks list-assumed-role
+ingext eks del-assumed-role --id <role-id>
+```
+
+### Applications (`application`)
+
+```bash
+ingext application list-template
+ingext application install --app <template> --instance <instance> --displayName "My App" --set key=value
+ingext application uninstall --app <template> --instance <instance>
 ```
 
 ## Development

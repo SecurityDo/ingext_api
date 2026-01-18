@@ -59,7 +59,7 @@ var lakeAddIndexCmd = &cobra.Command{
 	Use:   "add-index",
 	Short: "Add an index to the datalake",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cmd.PrintErrf("Adding index % to datalake %s\n", index, datalake)
+		cmd.PrintErrf("Adding index %s to datalake %s\n", index, datalake)
 		err := AppAPI.AddDatalakeIndex(datalake, index, schema)
 		if err != nil {
 			return err
@@ -114,7 +114,6 @@ func init() {
 	lakeAddCmd.Flags().StringVar(&datalake, "datalake", "", "datalake name")
 	lakeAddCmd.Flags().BoolVar(&managed, "managed", true, "Managed datalake (default: true)")
 	lakeAddCmd.Flags().StringVar(&integration, "integration", "", "integration id")
-	lakeAddCmd.Flags().StringVar(&schema, "schema", "ingext default", "schema name")
 
 	//_ = lakeAddCmd.MarkFlagRequired("datalake")
 	// _ = lakeAddCmd.MarkFlagRequired("name")
@@ -122,6 +121,7 @@ func init() {
 	// Flags for 'lake add index'
 	lakeAddIndexCmd.Flags().StringVar(&datalake, "datalake", "", "datalake name")
 	lakeAddIndexCmd.Flags().StringVar(&index, "index", "", "datalake index name")
+	lakeAddIndexCmd.Flags().StringVar(&schema, "schema", "ingext default", "schema name")
 
 	_ = lakeAddIndexCmd.MarkFlagRequired("datalake")
 	_ = lakeAddIndexCmd.MarkFlagRequired("index")
