@@ -78,7 +78,7 @@ func init() {
 	RootCmd.AddCommand(eksCmd)
 	eksCmd.AddCommand(addAssumedRoleCmd, delAssumedRoleCmd, listAssumedRoleCmd) // Add del/update similarly
 
-	addAssumedRoleCmd.Flags().StringVar(&roleName, "name", "", "Name of the user")
+	addAssumedRoleCmd.Flags().StringVar(&roleName, "name", "", "displayName of the role")
 	//addAssumedRoleCmd.Flags().StringVar(&roleDisplayName, "displayName", "", "Display name")
 	addAssumedRoleCmd.Flags().StringVar(&roleARN, "roleArn", "", "Role ARN to assume")
 	addAssumedRoleCmd.Flags().StringVar(&roleExternalID, "externalId", "", "External ID (optional)")

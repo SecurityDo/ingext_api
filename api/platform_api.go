@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/SecurityDo/ingext_api/client"
@@ -19,10 +20,10 @@ func NewPlatformService(client *client.IngextClient) *PlatformService {
 	return &PlatformService{client: client}
 }
 
-func (s *PlatformService) call(function string, payload interface{}, out interface{}) error {
-	res, err := s.client.GenericCall("api/ds", function, payload)
+func ApiCall(client *client.IngextClient, function string, payload interface{}, out interface{}) error {
+	res, err := client.GenericCall("api/ds", function, payload)
 	if err != nil {
-		fmt.Printf("Error calling %s: %v\n", function, err.Error())
+		fmt.Fprintf(os.Stderr, "Error calling %s: %v\n", function, err.Error())
 		return err
 	}
 	if out == nil {
@@ -30,14 +31,18 @@ func (s *PlatformService) call(function string, payload interface{}, out interfa
 	}
 	if res == nil {
 		err = fmt.Errorf("empty response from %s", function)
-		fmt.Println(err.Error())
+		fmt.Fprintln(os.Stderr, err.Error())
 		return err
 	}
 	if err := json.Unmarshal(res.GetBytes(), out); err != nil {
-		fmt.Printf("Error parsing %s response: %v\n", function, err.Error())
+		fmt.Errorf("Error parsing %s response: %v\n", function, err.Error())
 		return err
 	}
 	return nil
+}
+
+func (s *PlatformService) call(function string, payload interface{}, out interface{}) error {
+	return ApiCall(s.client, function, payload, out)
 }
 
 // Data source and sink configuration structures.
@@ -738,6 +743,31 @@ func (s *PlatformService) GetRouter(id string) (*RouterEntryResponse, error) {
 	return &resp, nil
 }
 
+type AddSimpleRouterReq struct {
+	Processor string `json:"processor,omitempty"`
+	Router    string `json:"router"`
+	Pipe      string `json:"pipe,omitempty"`
+	// multiple pipes
+	// Pipes      []string `json:"pipes,omitempty"`
+	// Processors []string `json:"processors,omitempty"`
+}
+
+func (s *PlatformService) AddSimpleRouter(processorName, routerName string) (string, error) {
+	if routerName == "" {
+		routerName = processorName
+	}
+	req := &AddSimpleRouterReq{
+		Processor: processorName,
+		Router:    routerName,
+		Pipe:      processorName,
+	}
+	var resp AddRouterResponse
+	if err := s.call("platform_add_simple_router", req, &resp); err != nil {
+		return "", err
+	}
+	return resp.ID, nil
+}
+
 // AddRouter registers a new router.
 func (s *PlatformService) AddRouter(entry *model.RouterConfig) (*AddRouterResponse, error) {
 	req := &GenericDAORequest[model.RouterConfig]{
@@ -818,10 +848,10 @@ func (s *PlatformService) ListProcessors() ([]*model.FPLScript, error) {
 }
 
 // GetProcessor returns a processor definition by name.
-func (s *PlatformService) GetProcessor(name string) (json.RawMessage, error) {
-	req := &GenericDAORequest[json.RawMessage]{
+func (s *PlatformService) GetProcessor(name string) (*model.FPLScript, error) {
+	req := &GenericDAORequest[*model.FPLScript]{
 		Action: "get",
-		Args: &GenericDAORequestArgs[json.RawMessage]{
+		Args: &GenericDAORequestArgs[*model.FPLScript]{
 			Id: name,
 		},
 	}
@@ -1024,6 +1054,7 @@ func (s *PlatformService) SourceReload(id string) error {
 	return s.call("platform_source_reload", req, nil)
 }
 
+/*
 // ProfileTotal retrieves aggregated platform CPU and memory metrics.
 func (s *PlatformService) ProfileTotal(req *PlatformMetricReq) (*PlatformMetricsResponse, error) {
 	var resp PlatformMetricsResponse
@@ -1119,7 +1150,7 @@ func (s *PlatformService) GetImportDeviceMetrics(req *DeviceMetricsRequest) (*De
 		return nil, err
 	}
 	return &resp, nil
-}
+}*/
 
 // ListIntegrations lists all platform integrations.
 func (s *PlatformService) ListIntegrations() ([]*model.Integration, error) {

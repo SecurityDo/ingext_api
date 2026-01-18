@@ -61,3 +61,49 @@ func (c *Client) ListUser() (users []*model.UserEntry, err error) {
 	}
 	return users, nil
 }
+
+func (c *Client) AddToken(name, displayName, role string) (token string, err error) {
+
+	// Use structured logging
+	//c.Logger.Info("adding user",
+	//	"name", name,
+	//	"role", role,
+	//)
+
+	authService := ingextAPI.NewAuthService(c.ingextClient)
+
+	token, err = authService.AddToken(name, displayName, role)
+	if err != nil {
+		c.Logger.Error("failed to add token", "error", err, "name", name, "role", role)
+		return "", fmt.Errorf("failed to add token: %w", err)
+	}
+	return token, nil
+}
+
+func (c *Client) DeleteToken(name string) (err error) {
+
+	// Use structured logging
+
+	authService := ingextAPI.NewAuthService(c.ingextClient)
+
+	err = authService.DeleteToken(name)
+	if err != nil {
+		c.Logger.Error("failed to delete token", "error", err, "name", name)
+		return fmt.Errorf("failed to delete token: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) ListToken() (tokens []*model.ApiTokenEntry, err error) {
+
+	// Use structured logging
+
+	authService := ingextAPI.NewAuthService(c.ingextClient)
+
+	tokens, err = authService.ListToken()
+	if err != nil {
+		c.Logger.Error("failed to list token", "error", err)
+		return nil, fmt.Errorf("failed to list token: %w", err)
+	}
+	return tokens, nil
+}

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
 
 	model "github.com/SecurityDo/ingext_api/model"
@@ -17,11 +18,67 @@ var (
 	integrationID   string // For associating with an integration
 	url             string // For HEC sink
 	token           string // For HEC sink
+
+	processorName string
+	routerName    string
+
+	sourceID string // For connecting source to router
+	routerID string // For connecting source to router
+	sinkID   string // For connecting source to router
+
 )
 
 var streamCmd = &cobra.Command{
 	Use:   "stream",
 	Short: "Manage streams",
+}
+
+var connectSinkCmd = &cobra.Command{
+	Use:   "connect-sink",
+	Short: "Connect a stream router to a sink",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		fmt.Println("Connecting stream router to a sink...")
+
+		err := AppAPI.SetRouterSink(routerID, sinkID)
+		if err != nil {
+			return err
+		}
+		cmd.PrintErrln("Stream connection added successfully: router ", routerID, " to sink ", sinkID)
+		//cmd.Println(resourceID)
+		return nil
+	},
+}
+
+var connectRouterCmd = &cobra.Command{
+	Use:   "connect-router",
+	Short: "Connect a stream source to a router",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		fmt.Println("Connecting source to a stream router...")
+
+		err := AppAPI.SetSourceRouter(sourceID, routerID)
+		if err != nil {
+			return err
+		}
+		cmd.PrintErrln("Stream connection added successfully: source ", sourceID, " to router ", routerID)
+		//cmd.Println(resourceID)
+		return nil
+	},
+}
+
+var addRouterCmd = &cobra.Command{
+	Use:   "add-router",
+	Short: "Add a stream router",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		fmt.Println("Deleting stream router...")
+
+		resourceID, err := AppAPI.AddSimpleRouter(processorName, routerName)
+		if err != nil {
+			return err
+		}
+		cmd.PrintErrln("Stream router added successfully: ", resourceID)
+		cmd.Println(resourceID)
+		return nil
+	},
 }
 
 var addSourceCmd = &cobra.Command{
@@ -45,6 +102,15 @@ var addSourceCmd = &cobra.Command{
 			source.Plugin = &model.PluginSourceConfig{
 				ID: integrationID,
 			}
+		} else if sourceType == "hec" {
+			source.Hec = &model.HecSourceConfig{
+				URL: url,
+			}
+			s := &model.HecSecret{
+				Token: token,
+			}
+			b, _ := json.Marshal(s)
+			source.Secret = b
 		}
 
 		response, err := AppAPI.AddDataSource(source)
@@ -189,22 +255,24 @@ var addSinkCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(streamCmd)
-	streamCmd.AddCommand(addSourceCmd, delSourceCmd, listSourceCmd, addSinkCmd, delSinkCmd, listSinkCmd) // Add del/update similarly
+	streamCmd.AddCommand(addSourceCmd, delSourceCmd, listSourceCmd, addSinkCmd, delSinkCmd, listSinkCmd, addRouterCmd, connectRouterCmd, connectSinkCmd) // Add del/update similarly
 
 	addSourceCmd.Flags().StringVar(&sourceType, "source-type", "", "data source type: plugin, s3, hec, webhook ")
 	addSourceCmd.Flags().StringVar(&resourceName, "name", "", "Name")
 	addSourceCmd.Flags().StringVar(&dataFormat, "format", "json", "Data Format")
 	addSourceCmd.Flags().StringVar(&dataCompression, "compression", "", "Data Compression")
+	addSourceCmd.Flags().StringVar(&url, "url", "", "URL for HEC sink")
+	addSourceCmd.Flags().StringVar(&token, "token", "", "Token")
 
 	addSourceCmd.Flags().StringVar(&integrationID, "integration-id", "", "Integration ID")
 
 	_ = addSourceCmd.MarkFlagRequired("source-type")
 	_ = addSourceCmd.MarkFlagRequired("name")
 
-	addSinkCmd.Flags().StringVar(&sourceType, "sink-type", "", "data sink type: datalake, hec, webhook")
+	addSinkCmd.Flags().StringVar(&sinkType, "sink-type", "", "data sink type: datalake, hec, webhook, drop")
 	addSinkCmd.Flags().StringVar(&resourceName, "name", "", "Name")
-	addSinkCmd.Flags().StringVar(&resourceName, "url", "", "URL for HEC sink")
-	addSinkCmd.Flags().StringVar(&resourceName, "token", "", "Token")
+	addSinkCmd.Flags().StringVar(&url, "url", "", "URL for HEC sink")
+	addSinkCmd.Flags().StringVar(&token, "token", "", "Token")
 
 	_ = addSinkCmd.MarkFlagRequired("sink-type")
 	_ = addSinkCmd.MarkFlagRequired("name")
@@ -214,5 +282,22 @@ func init() {
 
 	delSinkCmd.Flags().StringVar(&resourceID, "id", "", "data sink ID")
 	_ = delSinkCmd.MarkFlagRequired("id")
+
+	addRouterCmd.Flags().StringVar(&processorName, "processor", "", "processor name")
+	addRouterCmd.Flags().StringVar(&routerName, "router-name", "", "Router Name")
+
+	_ = addRouterCmd.MarkFlagRequired("processor")
+
+	connectRouterCmd.Flags().StringVar(&sourceID, "source-id", "", "source ID")
+	connectRouterCmd.Flags().StringVar(&routerID, "router-id", "", "Router ID")
+
+	_ = connectRouterCmd.MarkFlagRequired("source-id")
+	_ = connectRouterCmd.MarkFlagRequired("router-id")
+
+	connectSinkCmd.Flags().StringVar(&sinkID, "sink-id", "", "sink ID")
+	connectSinkCmd.Flags().StringVar(&routerID, "router-id", "", "Router ID")
+
+	_ = connectSinkCmd.MarkFlagRequired("sink-id")
+	_ = connectSinkCmd.MarkFlagRequired("router-id")
 
 }

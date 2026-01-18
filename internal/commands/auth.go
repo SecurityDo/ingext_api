@@ -68,6 +68,52 @@ var userListCmd = &cobra.Command{
 	},
 }
 
+var tokenAddCmd = &cobra.Command{
+	Use:   "add-token",
+	Short: "Add a token",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		//cmd.PrintErrf("Adding user: %s (Role: %s)\n", authName, authRole)
+		token, err := AppAPI.AddToken(authName, authDisplayName, authRole)
+		if err != nil {
+			cmd.PrintErrf("Error adding token: %s %v\n", authName, err)
+			return err
+		}
+		cmd.Println(token)
+		return nil
+	},
+}
+
+var tokenDelCmd = &cobra.Command{
+	Use:   "del-token",
+	Short: "Delete a token",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		//cmd.PrintErrf("Adding user: %s (Role: %s)\n", authName, authRole)
+		err := AppAPI.DeleteToken(authName)
+		if err != nil {
+			cmd.PrintErrf("Error deleting token: %s %v\n", authName, err)
+			return err
+		}
+		return nil
+	},
+}
+
+var tokenListCmd = &cobra.Command{
+	Use:   "list-token",
+	Short: "List tokens",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		//cmd.PrintErrf("Adding user: %s (Role: %s)\n", authName, authRole)
+		tokens, err := AppAPI.ListToken()
+		if err != nil {
+			cmd.PrintErrf("Error listing tokens: %v\n", err)
+			return err
+		}
+		for _, token := range tokens {
+			cmd.PrintErrf("Token: %s, Display Name: %s, Role: %s\n", token.Name, token.Description, strings.Join(token.Roles, ","))
+		}
+		return nil
+	},
+}
+
 /*
 // Nouns (Token)
 var authAddTokenCmd = &cobra.Command{
@@ -82,7 +128,7 @@ var authAddTokenCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(authCmd)
-	authCmd.AddCommand(userAddCmd, userDelCmd, userListCmd)
+	authCmd.AddCommand(userAddCmd, userDelCmd, userListCmd, tokenAddCmd, tokenDelCmd, tokenListCmd)
 
 	// Add 'user' and 'token' to 'add'
 	//authAddCmd.AddCommand(authAddUserCmd, authDelUserCmd)
@@ -100,5 +146,18 @@ func init() {
 
 	userDelCmd.Flags().StringVar(&authName, "name", "", "Name of the user")
 	_ = userDelCmd.MarkFlagRequired("name")
+
+	tokenAddCmd.Flags().StringVar(&authName, "name", "", "Name of the token")
+	tokenAddCmd.Flags().StringVar(&authDisplayName, "displayName", "", "Display name")
+	tokenAddCmd.Flags().StringVar(&authRole, "role", "", "Role (admin|analyst)")
+
+	// Mark required
+	_ = tokenAddCmd.MarkFlagRequired("name")
+	_ = tokenAddCmd.MarkFlagRequired("role")
+
+	tokenDelCmd.Flags().StringVar(&authName, "name", "", "Name of the token")
+
+	// Mark required
+	_ = tokenDelCmd.MarkFlagRequired("name")
 
 }

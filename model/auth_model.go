@@ -1,5 +1,7 @@
 package model
 
+import "time"
+
 type UserEntry struct {
 	Username     string `json:"username,omitempty" bson:"username"`
 	Email        string `json:"email,omitempty" bson:"email"`
@@ -25,4 +27,23 @@ type UserEntry struct {
 	APIPolicies  []string `json:"APIPolicies,omitempty"`
 
 	//Profile json.RawMessage `json:"profile"`
+}
+
+type ApiTokenEntry struct {
+	ID          string `json:"id,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	Disabled    bool   `json:"disabled"`
+
+	// only apply to smb sites
+	// Account string `json:"account,omitempty"`
+
+	Token        string   `json:"token,omitempty"`
+	Roles        []string `json:"roles"`
+	DataPolicies []string `json:"dataPolicies"`
+	APIPolicies  []string `json:"APIPolicies"`
+
+	LastAccess int64     `json:"lastAccess"`
+	CreatedOn  time.Time `json:"createdOn"`
+	UpdatedOn  time.Time `json:"updatedOn"`
 }

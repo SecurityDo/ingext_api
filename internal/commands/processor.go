@@ -20,6 +20,27 @@ var processorCmd = &cobra.Command{
 	Short: "Manage processors",
 }
 
+var listProcessorCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all processors",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		fmt.Println("Listing processors...")
+
+		entries, err := AppAPI.ListProcessor()
+		if err != nil {
+			return err
+		}
+		if len(entries) == 0 {
+			cmd.Println("No processor found.")
+			return nil
+		}
+		for _, entry := range entries {
+			cmd.PrintErrf("Name: %s, Type: %s\n", entry.Name, entry.Type)
+		}
+		return nil
+	},
+}
+
 var processorAddCmd = &cobra.Command{
 	Use:   "add",
 	Short: "Add a processor",
@@ -59,9 +80,29 @@ var processorAddCmd = &cobra.Command{
 		//  cmd.PrintErrln()
 		//  cmd.Printf( )  for output data/result
 		cmd.PrintErrf("Deploying processor '%s' (%d bytes)...\n", procName, len(content))
+		err := AppAPI.AddProcessor(procName, content, procType, procDesc)
+		if err != nil {
+			return err
+		}
+		cmd.PrintErrln("Processor added successfully")
+		return nil
+	},
+}
 
-		// Call your global API
-		// return AppAPI.AddProcessor(procName, content)
+var processorDelCmd = &cobra.Command{
+	Use:   "del",
+	Short: "Delete a processor",
+	RunE: func(cmd *cobra.Command, args []string) error {
+
+		// Now you have the content in 'content' variable
+		//  cmd.PrintErrln()
+		//  cmd.Printf( )  for output data/result
+		cmd.PrintErrf("Deleting processor '%s'...\n", procName)
+		err := AppAPI.DeleteProcessor(procName)
+		if err != nil {
+			return err
+		}
+		cmd.PrintErrln("Processor added successfully")
 		return nil
 	},
 }
@@ -70,16 +111,20 @@ var processorAddCmd = &cobra.Command{
 // echo "function process() { ... }" | ingext processor add --name filter --content -
 func init() {
 	RootCmd.AddCommand(processorCmd)
-	processorCmd.AddCommand(processorAddCmd) // Add del similarly
+	processorCmd.AddCommand(processorAddCmd, listProcessorCmd, processorDelCmd) // Add del similarly
 
 	//processorAddCmd.Flags().StringVar(&procName, "name", "", "Processor name")
 	//processorAddCmd.Flags().StringVar(&procFile, "file", "", "Processor file path")
 
 	processorAddCmd.Flags().StringVar(&procName, "name", "", "Processor name")
 	processorAddCmd.Flags().StringVar(&procContent, "content", "", "Processor content or file path (use '-' for stdin)")
-	processorAddCmd.Flags().StringVar(&procType, "type", "parser", "Processor type (parser|receiver|packer|report)")
+	processorAddCmd.Flags().StringVar(&procType, "type", "fpl_processor", "Processor type (fpl_processor|fpl_receiver|fpl_packer|fpl_report)")
 	processorAddCmd.Flags().StringVar(&procDesc, "desc", "", "Processor description (optional)")
 
 	_ = processorAddCmd.MarkFlagRequired("name")
 	_ = processorAddCmd.MarkFlagRequired("content")
+
+	processorDelCmd.Flags().StringVar(&procName, "name", "", "Processor name")
+	_ = processorDelCmd.MarkFlagRequired("name")
+
 }

@@ -30,3 +30,29 @@ func (c *Client) AddProcessor(name, content, processorType, description string) 
 	}
 	return nil
 }
+
+func (c *Client) DeleteProcessor(name string) (err error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	err = platformService.DeleteProcessor(name)
+
+	if err != nil {
+		c.Logger.Error("failed to delete processor", "name", name, "error", err)
+		return fmt.Errorf("failed to delete processor %s: %s", name, err.Error())
+	}
+	return nil
+}
+
+func (c *Client) ListProcessor() (entries []*model.FPLScript, err error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	entries, err = platformService.ListProcessors()
+
+	if err != nil {
+		c.Logger.Error("failed to list processor", "error", err)
+		return nil, fmt.Errorf("failed to list processor: %s", err.Error())
+	}
+	return entries, nil
+}

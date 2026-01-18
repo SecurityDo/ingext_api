@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 
+	"github.com/SecurityDo/ingext_api/api"
 	ingextAPI "github.com/SecurityDo/ingext_api/api"
 	model "github.com/SecurityDo/ingext_api/model"
 )
@@ -97,3 +98,84 @@ func (c *Client) AddRouter(routerConfig *model.RouterConfig) (id string, err err
 	}
 	return resp.ID, nil
 }
+
+func (c *Client) AddSimpleRouter(processorName string, routerName string) (id string, err error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	id, err = platformService.AddSimpleRouter(processorName, routerName)
+
+	if err != nil {
+		c.Logger.Error("failed to add router", "error", err)
+		return "", fmt.Errorf("failed to add router: %s", err.Error())
+	}
+	return id, nil
+}
+
+func (c *Client) SetRouterSink(routerID, sinkID string) (err error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	result, err := platformService.GetRouter(routerID)
+
+	if err != nil {
+		c.Logger.Error("failed to get router by ID", "error", err)
+		return fmt.Errorf("failed get router by ID: %s", err.Error())
+	}
+	if len(result.Pipes) == 0 {
+		c.Logger.Error("router has no pipes", "routerID", routerID)
+		return fmt.Errorf("router has no pipes: %s", routerID)
+	}
+	pipeConfig := result.Pipes[len(result.Pipes)-1] // Get the last pipe
+
+	for _, sid := range pipeConfig.SinkIDs {
+		if sid == sinkID {
+			c.Logger.Error("sink already exists in router", "routerID", routerID, "sinkID", sinkID)
+			return fmt.Errorf("sink already exists in router: %s, sink: %s", routerID, sinkID)
+		}
+	}
+	pipeConfig.SinkIDs = append(pipeConfig.SinkIDs, sinkID)
+
+	req := &api.PipeUpdateReq{
+		RouterID:   pipeConfig.RouterID,
+		PipeConfig: pipeConfig,
+	}
+
+	err = platformService.UpdatePipe(req)
+	if err != nil {
+		c.Logger.Error("failed to update pipe with new sink", "error", err)
+		return fmt.Errorf("failed to update pipe with new sink: %s", err.Error())
+	}
+
+	return nil
+}
+
+func (c *Client) SetSourceRouter(sourceID, routerID string) (err error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	err = platformService.SetDataSourceRouter(&api.SourceSetRouterReq{
+		DataSourceID: sourceID,
+		RouterID:     routerID,
+	})
+
+	if err != nil {
+		c.Logger.Error("failed to connect source to router", "error", err)
+		return fmt.Errorf("failed to connect source to router: %s", err.Error())
+	}
+	return nil
+}
+
+/*
+func (c *Client) AddPipe(routerConfig *model.StreamPipeConfig) (id string, err error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	resp, err := platformService.AddRouter(routerConfig)
+
+	if err != nil {
+		c.Logger.Error("failed to add router", "error", err)
+		return "", fmt.Errorf("failed to add router: %s", err.Error())
+	}
+	return resp.ID, nil
+}*/
