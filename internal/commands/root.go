@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/SecurityDo/ingext_api/internal/api"
 
@@ -15,9 +16,16 @@ import (
 
 var (
 	// Global flags
-	cfgFile   string
-	cluster   string
-	namespace string
+	cfgFile     string
+	cluster     string
+	namespace   string
+	logLevel    string
+	showVersion bool
+)
+
+const (
+	appVersion      = "1.1.0"
+	defaultLogLevel = "warn"
 )
 
 /*
@@ -29,12 +37,25 @@ Exception: Use cmd.Printf (or cmd.Println) only when you are printing the final 
 var RootCmd = &cobra.Command{
 	Use:   "ingext",
 	Short: "A CLI tool for managing ingext resources",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if showVersion {
+			cmd.Printf("ingext version %s\n", appVersion)
+			return nil
+		}
+
+		return cmd.Help()
+	},
 
 	SilenceUsage:  true, // Don't show help text on runtime errors
 	SilenceErrors: true, // Optional: if you want to print errors yourself in main.go
 	// PersistentPreRunE runs BEFORE the subcommand (e.g., 'ingext stream add')
 	// but AFTER flags are parsed.
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// Skip initialization if we're only showing the version
+		if showVersion {
+			return nil
+		}
+
 		// 1. Skip initialization for commands that don't need it (like 'config' or 'help')
 		if cmd.Parent() != nil && cmd.Parent().Name() == "config" {
 			return nil
@@ -54,16 +75,25 @@ var RootCmd = &cobra.Command{
 		clusterName := viper.GetString("cluster")
 		namespace := viper.GetString("namespace")
 		kubeCtx := viper.GetString("context")
+		levelValue := viper.GetString("log-level")
 		if clusterName == "" {
 			return fmt.Errorf("cluster name is required. Run 'ingext config' or use --cluster")
 		}
 
 		// 1. Configure the Handler options
-		opts := &slog.HandlerOptions{
-			Level: slog.LevelInfo, // Default level
-		}
-		if verbose {
+		opts := &slog.HandlerOptions{}
+
+		switch strings.ToLower(levelValue) {
+		case "debug":
 			opts.Level = slog.LevelDebug
+		case "info":
+			opts.Level = slog.LevelInfo
+		case "warn", "":
+			opts.Level = slog.LevelWarn
+		case "error":
+			opts.Level = slog.LevelError
+		default:
+			return fmt.Errorf("invalid log level %q: choose debug, info, warn, error", levelValue)
 		}
 
 		// 2. Create the Handler pointing to STDERR
@@ -83,7 +113,7 @@ var RootCmd = &cobra.Command{
 		}
 
 		// 4. Inject into your Client
-		// Now your client logs will go to Stderr, respecting the --verbose flag
+		// Now your client logs will go to Stderr, respecting the --log-level flag
 		AppAPI = api.NewClient(logger)
 
 		// 3. Initialize the Global API
@@ -104,16 +134,17 @@ func Execute() {
 
 }
 
-var verbose bool
-
 func init() {
 	cobra.OnInitialize(config.InitConfig)
 
 	// Define global flags
 	RootCmd.PersistentFlags().StringVar(&cluster, "cluster", "", "k8s cluster name")
 	RootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "ingext", "namespace of the ingext app")
-	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose logging")
+	RootCmd.PersistentFlags().StringVarP(&logLevel, "log-level", "l", defaultLogLevel, "log level: debug, info, warn, error")
+	RootCmd.Flags().BoolVarP(&showVersion, "version", "v", false, "show version")
+	RootCmd.Version = appVersion
 	// Bind global flags to viper so they can be accessed anywhere
 	viper.BindPFlag("cluster", RootCmd.PersistentFlags().Lookup("cluster"))
 	viper.BindPFlag("namespace", RootCmd.PersistentFlags().Lookup("namespace"))
+	viper.BindPFlag("log-level", RootCmd.PersistentFlags().Lookup("log-level"))
 }

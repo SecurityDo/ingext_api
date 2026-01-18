@@ -215,21 +215,9 @@ type StreamPipeConfig struct {
 }
 
 type DataLakeSinkConfig struct {
-	IntegrationID string `json:"integrationID"`
-
-	ByoB         bool `json:"byoB,omitempty"`         // if true, use BYOB storage integration, otherwise use default storage integration
-	LocalStorage bool `json:"localStorage,omitempty"` // if true, use local storage integration, otherwise use default storage integration
-	//Index        string `json:"index" yaml:"index"`
-	// "ingext default"  or  "elastic/opensearch"  or "k8s logs"
-	SchemaName string `json:"schemaName" yaml:"schemaName"`
-	Schema     string `json:"schema" yaml:"schema"`
-
-	// filled by the server
-	Plugin             *PluginSourceConfig `json:"plugin,omitempty"`
-	Config             *DataLakeConfig     `json:"config,omitempty"`
-	StorageIntegration *Integration        `json:"-"`
-	//Secret  *integrationModel.DataLakeSecret `json:"-"`
-	//RoleObj *integrationModel.InstanceRole   `json:"-"`
+	Datalake      string `json:"datalake,omitempty"`      // the data lake name, e.g. "managed"
+	DatalakeIndex string `json:"datalakeIndex,omitempty"` // the data lake index, e.g. "cloudtrail", "aws-vpc"
+	SchemaName    string `json:"schemaName" yaml:"schemaName"`
 }
 
 type PromSinkConfig struct {

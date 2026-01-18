@@ -34,10 +34,10 @@ Before running commands, configure the target Kubernetes cluster and namespace. 
 
 ```bash
 # Set your default target
-ingext config --cluster <k8s-cluster> --namespace <app-namespace> --context <kubectlContext>  --provider <eks|aks|gke>
+ingext config set --cluster <k8s-cluster> --namespace <app-namespace> --context <kubectlContext>  --provider <eks|aks|gke>
 
 # Example
-ingext config --cluster datalake  --namespace ingext --provider eks --context arn:aws:eks:$Region:$AWSAccount:cluster/datalake 
+ingext config set --cluster datalake  --namespace ingext --provider eks --context arn:aws:eks:$Region:$AWSAccount:cluster/datalake 
 
 ```
 
@@ -58,6 +58,15 @@ export INGEXT_NAMESPACE=ingext
 ```
 
 ## Usage
+
+### Global flags
+
+| Flag | Shorthand | Default | Description |
+| --- | --- | --- | --- |
+| `--cluster` |  | _none_ | Target Kubernetes cluster (required unless set via config). |
+| `--namespace` | `-n` | `ingext` | Namespace of the ingext app. |
+| `--log-level` | `-l` | `warn` | Log level: `debug`, `info`, `warn`, or `error`. |
+| `--version` | `-v` | `false` | Print CLI version (`1.0.0`) and exit. |
 
 ### Authentication (`auth`)
 
@@ -166,6 +175,7 @@ This project uses `client-go` v0.35.0. If you change versions, ensure all k8s li
 
 ```bash
 go get k8s.io/client-go@v0.35.0 k8s.io/api@v0.35.0 k8s.io/apimachinery@v0.35.0
+go get "github.com/google/go-github/v64/github"
 go mod tidy
 
 ```

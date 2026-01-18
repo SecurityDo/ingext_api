@@ -219,11 +219,12 @@ var addSinkCmd = &cobra.Command{
 		}
 
 		if sinkType == "datalake" {
-			if integrationID == "" {
-				return fmt.Errorf("integration-id is required for datalake sink type")
+			if index == "" {
+				return fmt.Errorf("index is required for datalake sink type")
 			}
 			sink.DataLake = &model.DataLakeSinkConfig{
-				IntegrationID: integrationID,
+				Datalake:      datalake,
+				DatalakeIndex: index,
 			}
 		} else if sinkType == "hec" {
 			sink.Hec = &model.HecSinkConfig{
@@ -261,8 +262,6 @@ func init() {
 	addSourceCmd.Flags().StringVar(&resourceName, "name", "", "Name")
 	addSourceCmd.Flags().StringVar(&dataFormat, "format", "json", "Data Format")
 	addSourceCmd.Flags().StringVar(&dataCompression, "compression", "", "Data Compression")
-	addSourceCmd.Flags().StringVar(&url, "url", "", "URL for HEC sink")
-	addSourceCmd.Flags().StringVar(&token, "token", "", "Token")
 
 	addSourceCmd.Flags().StringVar(&integrationID, "integration-id", "", "Integration ID")
 
@@ -273,6 +272,10 @@ func init() {
 	addSinkCmd.Flags().StringVar(&resourceName, "name", "", "Name")
 	addSinkCmd.Flags().StringVar(&url, "url", "", "URL for HEC sink")
 	addSinkCmd.Flags().StringVar(&token, "token", "", "Token")
+
+	addSinkCmd.Flags().StringVar(&datalake, "datalake", "managed", "datalake name")
+	addSinkCmd.Flags().StringVar(&index, "index", "", "datalake index name")
+
 	//addSinkCmd.Flags().StringVar(&integrationID, "integration-id", "", "Integration ID")
 
 	_ = addSinkCmd.MarkFlagRequired("sink-type")

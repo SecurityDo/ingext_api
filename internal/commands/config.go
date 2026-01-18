@@ -17,11 +17,19 @@ var (
 	confContext  string
 )
 
-// configCmd now saves multiple profiles
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Configure the ingext tool",
-	Long:  `Sets configuration values in ~/.ingext/config.yaml for a specific cluster profile.`,
+	Long:  `Manage ingext configuration stored in ~/.ingext/config.yaml.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return cmd.Help()
+	},
+}
+
+// Subcommand: SET
+var configSetCmd = &cobra.Command{
+	Use:   "set",
+	Short: "Set configuration values for a cluster profile",
 	Run: func(cmd *cobra.Command, args []string) {
 		// 1. Identify which cluster profile we are editing
 		// 'cluster' is the global flag defined in root.go
@@ -115,11 +123,15 @@ var configListCmd = &cobra.Command{
 
 // Subcommand: DELETE
 var configDeleteCmd = &cobra.Command{
-	Use:   "delete <clusterName>",
+	Use:   "delete",
 	Short: "Delete a cluster configuration",
-	Args:  cobra.ExactArgs(1), // Requires exactly one argument
 	Run: func(cmd *cobra.Command, args []string) {
-		clusterToDelete := args[0]
+		clusterToDelete := cluster
+
+		if clusterToDelete == "" {
+			cmd.PrintErrln("Error: --cluster is required to delete a profile.")
+			return
+		}
 
 		// 1. Get the raw map
 		allClusters := viper.GetStringMap("clusters")
@@ -135,10 +147,21 @@ var configDeleteCmd = &cobra.Command{
 		// 3. Set the map back to Viper
 		viper.Set("clusters", allClusters)
 
-		// 4. Handle edge case: If we deleted the "current" cluster, unset it
-		if viper.GetString("current-cluster") == clusterToDelete {
-			viper.Set("current-cluster", "")
-			fmt.Println("Warning: You deleted the currently active cluster context.")
+		// 4. Handle edge case: If we deleted the "current" cluster, pick another if available
+		current := viper.GetString("current-cluster")
+		if current == clusterToDelete {
+			if len(allClusters) == 0 {
+				viper.Set("current-cluster", "")
+				fmt.Println("Warning: You deleted the currently active cluster context. No clusters remain.")
+			} else {
+				newCurrent := pickFirstCluster(allClusters)
+				viper.Set("current-cluster", newCurrent)
+				fmt.Printf("Switched current cluster to '%s'.\n", newCurrent)
+			}
+		} else if current == "" && len(allClusters) > 0 {
+			newCurrent := pickFirstCluster(allClusters)
+			viper.Set("current-cluster", newCurrent)
+			fmt.Printf("Current cluster was unset. Switched current cluster to '%s'.\n", newCurrent)
 		}
 
 		if err := config.SaveConfig(); err != nil {
@@ -179,6 +202,7 @@ var configViewCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(configCmd)
+	configCmd.AddCommand(configSetCmd)
 	configCmd.AddCommand(configViewCmd)
 
 	// Add new subcommands
@@ -187,11 +211,25 @@ func init() {
 
 	// Configuration for 'config' command
 	// Default value "eks" is set here for the FLAG
-	configCmd.Flags().StringVar(&confProvider, "provider", "eks", "Provider (eks|aks|gke)")
-	configCmd.Flags().StringVar(&confContext, "context", "", "Kubeconfig context name")
+	configSetCmd.Flags().StringVar(&confProvider, "provider", "eks", "Provider (eks|aks|gke)")
+	configSetCmd.Flags().StringVar(&confContext, "context", "", "Kubeconfig context name")
+
+	_ = configSetCmd.MarkFlagRequired("context")
+	_ = configSetCmd.MarkFlagRequired("namespace")
+	_ = configSetCmd.MarkFlagRequired("cluster")
 
 	// Set the global default for Viper as well (in case user views config without setting it)
 	viper.SetDefault("provider", "eks")
+}
+
+// pickFirstCluster returns the first cluster name in sorted order.
+func pickFirstCluster(clusters map[string]interface{}) string {
+	var names []string
+	for name := range clusters {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names[0]
 }
 
 /*
