@@ -11,7 +11,7 @@ import (
 var (
 	procName    string
 	procContent string
-	procType    string // Default to "parser" if not specified
+	procType    string // Default to "fpl_processor" if not specified
 	procDesc    string // Optional description for the processor
 )
 

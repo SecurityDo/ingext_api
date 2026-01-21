@@ -20,6 +20,7 @@ var (
 	configIntParams  map[string]int64
 	configJsonFlags  []string
 	secretParams     map[string]string
+	addSource        bool
 )
 
 var integrationCmd = &cobra.Command{
@@ -141,6 +142,22 @@ var integrationAddCmd = &cobra.Command{
 		}
 
 		cmd.PrintErrln("Integration added successfully: ", id)
+		if addSource {
+			resp, err := AppAPI.AddDataSource(&model.DataSourceConfig{
+				Type: "plugin",
+				Name: integName,
+				Plugin: &model.PluginSourceConfig{
+					ID: id,
+				},
+			})
+			if err != nil {
+				cmd.PrintErrf("Error adding plugin data source: with integration %s %v\n", id, err)
+				return err
+			}
+			cmd.PrintErrln("Plugin data source added successfully: ", resp.ID)
+			cmd.Println(resp.ID)
+			return nil
+		}
 		cmd.Println(id)
 		return nil
 	},
@@ -191,6 +208,7 @@ func init() {
 	integrationAddCmd.Flags().StringVar(&integType, "integration", "", "Integration type")
 	integrationAddCmd.Flags().StringVar(&integName, "name", "", "Name")
 	integrationAddCmd.Flags().StringVar(&integDesc, "description", "", "Description")
+	integrationAddCmd.Flags().BoolVar(&addSource, "add-source", false, "add plugin-type data source")
 
 	integrationAddCmd.Flags().StringToStringVarP(&configParams, "config", "", nil, "Configuration string type parameters")
 	integrationAddCmd.Flags().StringToStringVarP(&configBoolParams, "config-bool", "", nil, "Configuration boolean type parameters")

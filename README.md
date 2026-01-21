@@ -112,7 +112,7 @@ ingext stream connect-sink --router-id <router-id> --sink-id <sink-id>
 Deploy data processors. Supports piping input via `-` and file loading via `@path`.
 
 ```bash
-ingext processor add --name filter-logic --content @./scripts/filter.js --type parser
+ingext processor add --name filter-logic --content @./scripts/filter.js
 cat ./scripts/transform.js | ingext processor add --name transform-logic --content -
 ingext processor list
 ingext processor del --name filter-logic

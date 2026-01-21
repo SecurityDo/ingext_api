@@ -12,7 +12,7 @@ func (c *Client) AddProcessor(name, content, processorType, description string) 
 	platformService := ingextAPI.NewPlatformService(c.ingextClient)
 
 	if processorType == "" {
-		processorType = "parser" // Default to JavaScript if not specified
+		processorType = "fpl_processor" // Default to JavaScript if not specified
 	}
 
 	entry := &model.FPLScript{
