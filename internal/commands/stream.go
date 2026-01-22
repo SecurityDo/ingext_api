@@ -76,7 +76,7 @@ var addRouterCmd = &cobra.Command{
 			return err
 		}
 		cmd.PrintErrln("Stream router added successfully: ", resourceID)
-		cmd.Println(resourceID)
+		fmt.Println(resourceID)
 		return nil
 	},
 }
@@ -126,7 +126,7 @@ var addSourceCmd = &cobra.Command{
 			b, _ := response.Secret.MarshalJSON()
 			cmd.PrintErrln("Secret:", string(b))
 		}
-		cmd.Println(response.ID)
+		fmt.Println(response.ID)
 		return nil
 	},
 }
@@ -246,7 +246,7 @@ var addSinkCmd = &cobra.Command{
 		}
 
 		cmd.PrintErrln("Stream sink added successfully: ", response.ID)
-		cmd.Println(response.ID)
+		fmt.Println(response.ID)
 
 		return nil
 	},

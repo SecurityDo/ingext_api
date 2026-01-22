@@ -68,6 +68,14 @@ export INGEXT_NAMESPACE=ingext
 | `--log-level` | `-l` | `warn` | Log level: `debug`, `info`, `warn`, or `error`. |
 | `--version` | `-v` | `false` | Print CLI version (`1.0.0`) and exit. |
 
+### Status (`status`)
+
+Check the current namespace for running services and health checks for core ingext endpoints. Prints a table plus a summary of healthy/degraded/down services.
+
+```bash
+ingext status
+```
+
 ### Authentication (`auth`)
 
 Manage users and access tokens.

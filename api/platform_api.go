@@ -557,6 +557,31 @@ type GenericDaoListResponse[T any] struct {
 	Entries []*T `json:"entries"`
 }
 
+func (s *PlatformService) GetPodRole() (role, arn string, err error) {
+	var resp struct {
+		Role string `json:"role"`
+		ARN  string `json:"arn"`
+	}
+	if err := s.call("get_pod_role", nil, &resp); err != nil {
+		return "", "", err
+	}
+	return resp.Role, resp.ARN, nil
+
+}
+
+func (s *PlatformService) TestAssumedRole(roleARN string, externalID string) (err error) {
+	request := &model.InstanceRoleTestRequest{
+		RoleARN:    roleARN,
+		ExternalID: externalID,
+	}
+
+	if err := s.call("platform_instancerole_test", request, nil); err != nil {
+		return err
+	}
+	return nil
+
+}
+
 func (s *PlatformService) AddAssumedRole(name string, roleARN string, externalID string) (id string, err error) {
 	request := &GenericDAORequest[model.InstanceRole]{
 		Action: "add",

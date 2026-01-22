@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
@@ -17,6 +19,41 @@ var eksCmd = &cobra.Command{
 	Short: "Manage EKS pod identity assumed roles",
 }
 
+var getPodRoleCmd = &cobra.Command{
+	Use:   "get-pod-role",
+	Short: "Get iam role for Pod Identity Agent",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.PrintErrln("Getting Pod Role...")
+		// Just call the global interface
+		role, arn, err := AppAPI.GetPodRole()
+		if err != nil {
+			return err
+		}
+
+		cmd.PrintErrln("Get Pod Role: ", role, " ARN: ", arn)
+		fmt.Println(role)
+		return nil
+	},
+}
+
+var testAssumedRoleCmd = &cobra.Command{
+	Use:   "test-assumed-role",
+	Short: "Test Assumed Roles for Pod Identity Agent",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		//cmd.PrintErrln("Testing AWS Role...")
+		// Just call the global interface
+		err := AppAPI.TestAssumedRole(roleARN, roleExternalID)
+		if err != nil {
+			fmt.Println("Error testing assumed role:", err)
+			return nil
+		}
+
+		cmd.PrintErrln("Role tested successfully: ")
+		fmt.Println("OK")
+		return nil
+	},
+}
+
 var addAssumedRoleCmd = &cobra.Command{
 	Use:   "add-assumed-role",
 	Short: "Add Assumed Roles for Pod Identity Agent",
@@ -29,7 +66,7 @@ var addAssumedRoleCmd = &cobra.Command{
 		}
 
 		cmd.PrintErrln("Role added successfully: ", id)
-		cmd.Println(id)
+		fmt.Println(id)
 		return nil
 	},
 }
@@ -76,7 +113,7 @@ var listAssumedRoleCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(eksCmd)
-	eksCmd.AddCommand(addAssumedRoleCmd, delAssumedRoleCmd, listAssumedRoleCmd) // Add del/update similarly
+	eksCmd.AddCommand(addAssumedRoleCmd, delAssumedRoleCmd, listAssumedRoleCmd, getPodRoleCmd, testAssumedRoleCmd) // Add del/update similarly
 
 	addAssumedRoleCmd.Flags().StringVar(&roleName, "name", "", "displayName of the role")
 	//addAssumedRoleCmd.Flags().StringVar(&roleDisplayName, "displayName", "", "Display name")
@@ -89,4 +126,11 @@ func init() {
 
 	//streamAddCmd.AddCommand(streamAddSourceCmd)
 	// Add other leaf commands: sink, router, connection
+
+	testAssumedRoleCmd.Flags().StringVar(&roleARN, "roleArn", "", "Role ARN to assume")
+	testAssumedRoleCmd.Flags().StringVar(&roleExternalID, "externalId", "", "External ID (optional)")
+
+	// Mark required
+	_ = testAssumedRoleCmd.MarkFlagRequired("roleArn")
+
 }

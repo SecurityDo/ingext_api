@@ -572,15 +572,6 @@ func GetSecret[S any](r *Integration) (*S, error) {
 	return &secret, nil
 }
 
-type InstanceRole struct {
-	ID          string    `json:"id"`
-	DisplayName string    `json:"displayName"`
-	Description string    `json:"description"`
-	ExternalID  string    `json:"externalID"`
-	RoleARN     string    `json:"roleARN"`
-	CreatedOn   time.Time `json:"createdOn"`
-}
-
 type DataLakeConfig struct {
 	// integration type  INTEGRATION_AWS_S3BUCKET
 	// StorageType string `json:"storageType" yaml:"storageType"`

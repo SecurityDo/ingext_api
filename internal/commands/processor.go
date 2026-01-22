@@ -31,7 +31,7 @@ var listProcessorCmd = &cobra.Command{
 			return err
 		}
 		if len(entries) == 0 {
-			cmd.Println("No processor found.")
+			cmd.PrintErrln("No processor found.")
 			return nil
 		}
 		for _, entry := range entries {

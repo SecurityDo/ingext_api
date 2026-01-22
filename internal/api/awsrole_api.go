@@ -7,6 +7,32 @@ import (
 	"github.com/SecurityDo/ingext_api/model"
 )
 
+func (c *Client) GetPodRole() (role, arn string, err error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	role, arn, err = platformService.GetPodRole()
+
+	if err != nil {
+		c.Logger.Error("failed to get pod role", "error", err)
+		return "", "", fmt.Errorf("failed to get pod role: %w", err)
+	}
+
+	return role, arn, nil
+}
+
+func (c *Client) TestAssumedRole(roleARN, roleExternalID string) (err error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	err = platformService.TestAssumedRole(roleARN, roleExternalID)
+
+	if err != nil {
+		c.Logger.Error("failed to test assumed role", "error", err, "role", roleARN)
+		return fmt.Errorf("failed to add user: %w", err)
+	}
+	return nil
+}
 func (c *Client) AddAssumedRole(roleName, roleARN, roleExternalID string) (id string, err error) {
 
 	platformService := ingextAPI.NewPlatformService(c.ingextClient)

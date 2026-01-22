@@ -155,10 +155,10 @@ var integrationAddCmd = &cobra.Command{
 				return err
 			}
 			cmd.PrintErrln("Plugin data source added successfully: ", resp.ID)
-			cmd.Println(resp.ID)
+			fmt.Println(resp.ID)
 			return nil
 		}
-		cmd.Println(id)
+		fmt.Println(id)
 		return nil
 	},
 }
@@ -189,7 +189,7 @@ var integrationListCmd = &cobra.Command{
 		}
 		cmd.PrintErrln("Listing Integration...")
 		if len(entries) == 0 {
-			cmd.Println("No integration found.")
+			cmd.PrintErrln("No integration found.")
 			return nil
 		}
 

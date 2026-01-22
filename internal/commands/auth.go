@@ -3,6 +3,7 @@ package commands
 import (
 	//"fmt"
 
+	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -78,7 +79,7 @@ var tokenAddCmd = &cobra.Command{
 			cmd.PrintErrf("Error adding token: %s %v\n", authName, err)
 			return err
 		}
-		cmd.Println(token)
+		fmt.Println(token)
 		return nil
 	},
 }
