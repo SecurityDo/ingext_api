@@ -123,7 +123,7 @@ func init() {
 	lakeAddIndexCmd.Flags().StringVar(&index, "index", "", "datalake index name")
 	lakeAddIndexCmd.Flags().StringVar(&schema, "schema", "ingext default", "schema name")
 
-	_ = lakeAddIndexCmd.MarkFlagRequired("datalake")
+	//_ = lakeAddIndexCmd.MarkFlagRequired("datalake")
 	_ = lakeAddIndexCmd.MarkFlagRequired("index")
 
 	lakeListIndexCmd.Flags().StringVar(&datalake, "datalake", "", "datalake name")
