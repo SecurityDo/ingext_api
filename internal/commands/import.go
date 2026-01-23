@@ -28,11 +28,25 @@ var importProcessorCmd = &cobra.Command{
 	},
 }
 
+var importAppTemplateCmd = &cobra.Command{
+	Use:   "application",
+	Short: "Import application template",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		//fmt.Println("Listing processors...")
+
+		err := AppAPI.ImportAppTemplate(repoName)
+		if err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
 // ingext processor add --name filter --content "@./scripts/filter.js"
 // echo "function process() { ... }" | ingext processor add --name filter --content -
 func init() {
 	RootCmd.AddCommand(importCmd)
-	importCmd.AddCommand(importProcessorCmd)
+	importCmd.AddCommand(importProcessorCmd, importAppTemplateCmd)
 
 	importProcessorCmd.Flags().StringVar(&procType, "type", "fpl_processor", "Processor type (fpl_processor|fpl_receiver|fpl_packer|fpl_report)")
 

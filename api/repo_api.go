@@ -52,17 +52,28 @@ func (s *RepoService) GetRepoContent(repoId string, repoPath string) (resp *GitR
 	return resp, nil
 }
 
-type ImportRepoProcessorRequest struct {
+type ImportRepoObjectsRequest struct {
 	ID    string   `json:"id,omitempty"`
 	Paths []string `json:"paths"`
 }
 
 func (s *RepoService) ImportRepoProcessors(repoId string, filePaths []string) (err error) {
-	req := &ImportRepoProcessorRequest{
+	req := &ImportRepoObjectsRequest{
 		ID:    repoId,
 		Paths: filePaths,
 	}
 	if err := s.call("platform_import_processors", req, nil); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *RepoService) ImportAppTemplates(repoId string, filePaths []string) (err error) {
+	req := &ImportRepoObjectsRequest{
+		ID:    repoId,
+		Paths: filePaths,
+	}
+	if err := s.call("platform_import_application_templates", req, nil); err != nil {
 		return err
 	}
 	return nil

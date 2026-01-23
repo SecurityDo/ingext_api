@@ -60,3 +60,42 @@ func (c *Client) UnInstallAppInstance(application, instance string) (err error) 
 	}
 	return nil
 }
+
+func (c *Client) AddTemplate(content string) (id string, err error) {
+
+	applicationService := ingextAPI.NewApplicationService(c.ingextClient)
+
+	id, err = applicationService.AddAppTemplate(content)
+
+	if err != nil {
+		c.Logger.Error("failed to add application template", "error", err)
+		return "", fmt.Errorf("failed to add application template: %w", err)
+	}
+	return id, nil
+}
+
+func (c *Client) DeleteTemplate(name string) (err error) {
+
+	applicationService := ingextAPI.NewApplicationService(c.ingextClient)
+
+	err = applicationService.DeleteAppTemplate(name)
+
+	if err != nil {
+		c.Logger.Error("failed to delete application template", "error", err)
+		return fmt.Errorf("failed to delete application template %s: %w", name, err)
+	}
+	return nil
+}
+
+func (c *Client) UpdateTemplate(name string, content string) (err error) {
+
+	applicationService := ingextAPI.NewApplicationService(c.ingextClient)
+
+	err = applicationService.UpdateAppTemplate(name, content)
+
+	if err != nil {
+		c.Logger.Error("failed to update application template", "error", err)
+		return fmt.Errorf("failed to update application template %s: %w", name, err)
+	}
+	return nil
+}

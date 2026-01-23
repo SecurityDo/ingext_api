@@ -47,6 +47,11 @@ type ApplicationTemplate struct {
 	Collectors   map[string]*CollectorResource   `json:"collectors,omitempty" yaml:"collectors,omitempty"`
 }
 
+type AppTemplateEntry struct {
+	Config  *ApplicationTemplateConfig `json:"config"`
+	Content string                     `json:"content"`
+}
+
 type CollectorSpec struct {
 	Name        string            `json:"name,omitempty" yaml:"name,omitempty"`
 	Description string            `json:"description,omitempty" yaml:"description,omitempty"`

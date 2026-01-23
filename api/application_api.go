@@ -67,3 +67,51 @@ func (s *ApplicationService) UnInstallAppTemplate(req *UnInstallAppInstanceReque
 	}
 	return nil
 }
+
+func (s *ApplicationService) AddAppTemplate(content string) (id string, err error) {
+	request := &GenericDAORequest[model.AppTemplateEntry]{
+		Action: "add",
+		Args: &GenericDAORequestArgs[model.AppTemplateEntry]{
+			//Id:    args.Id,
+			Entry: &model.AppTemplateEntry{Content: content},
+		},
+	}
+	var resp GenericDaoAddResponse
+	if err := s.call("platform_application_template_dao", request, &resp); err != nil {
+		return "", err
+	}
+	return resp.ID, nil
+}
+
+func (s *ApplicationService) DeleteAppTemplate(name string) (err error) {
+	request := &GenericDAORequest[model.AppTemplateEntry]{
+		Action: "delete",
+		Args: &GenericDAORequestArgs[model.AppTemplateEntry]{
+			Id: name,
+		},
+	}
+	//var resp GenericDaoAddResponse
+	if err := s.call("platform_application_template_dao", request, nil); err != nil {
+		return err
+	}
+	return nil
+
+}
+
+func (s *ApplicationService) UpdateAppTemplate(name string, content string) (err error) {
+	request := &GenericDAORequest[model.AppTemplateEntry]{
+		Action: "update",
+		Args: &GenericDAORequestArgs[model.AppTemplateEntry]{
+			Id: name,
+			Entry: &model.AppTemplateEntry{
+				Content: content,
+			},
+		},
+	}
+	//var resp GenericDaoAddResponse
+	if err := s.call("platform_application_template_dao", request, nil); err != nil {
+		return err
+	}
+	return nil
+
+}

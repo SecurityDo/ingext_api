@@ -159,8 +159,8 @@ ingext eks del-assumed-role --id <role-id>
 ### Applications (`application`)
 
 ```bash
-ingext application list-template
-ingext application install --app <template> --instance <instance> --displayName "My App" --set key=value
+ingext application list
+ingext application install --app <template> --instance <instance> --displayName "My App" --config key=value --secret secretKey=value
 ingext application uninstall --app <template> --instance <instance>
 ```
 
