@@ -115,3 +115,27 @@ func (s *ApplicationService) UpdateAppTemplate(name string, content string) (err
 	return nil
 
 }
+
+type GetAppInstanceRequest struct {
+	Application string `json:"application,omitempty" yaml:"application,omitempty"`
+	Instance    string `json:"instance,omitempty" yaml:"instance,omitempty"`
+}
+
+type GetAppInstanceResponse struct {
+	//State   *applicationAPI.InstanceState       `json:"state"`
+	//Actions []*applicationAPI.AppInstanceAction `json:"actions"`
+	Outputs []*model.InputParameter `json:"outputs,omitempty"`
+}
+
+func (s *ApplicationService) GetAppInstance(app string, instance string) (res *GetAppInstanceResponse, err error) {
+	request := &GetAppInstanceRequest{
+		Application: app,
+		Instance:    instance,
+	}
+	var resp GetAppInstanceResponse
+	if err := s.call("platform_get_application_instance", request, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+
+}

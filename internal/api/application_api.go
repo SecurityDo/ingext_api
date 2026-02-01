@@ -40,7 +40,21 @@ func (c *Client) InstallAppInstance(application, instance string, displayName st
 		c.Logger.Error("failed to install application instance", "error", err)
 		return fmt.Errorf("failed to install application instance: %w", err)
 	}
+
 	return nil
+}
+
+func (c *Client) GetAppInstance(application, instance string) (res *api.GetAppInstanceResponse, err error) {
+
+	applicationService := ingextAPI.NewApplicationService(c.ingextClient)
+	res, err = applicationService.GetAppInstance(application, instance)
+
+	if err != nil {
+		c.Logger.Error("failed to get application instance", "error", err)
+		return nil, fmt.Errorf("failed to get application instance: %w", err)
+	}
+
+	return res, nil
 }
 
 func (c *Client) UnInstallAppInstance(application, instance string) (err error) {

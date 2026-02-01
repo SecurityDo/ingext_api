@@ -63,6 +63,9 @@ var RootCmd = &cobra.Command{
 		if cmd.Name() == "config" {
 			return nil
 		}
+		//if cmd.Name() == "version" {
+		//	return nil
+		//}
 
 		// 1. SKIP logic for Help and Autocompletion
 		// Cobra adds a "help" command automatically.

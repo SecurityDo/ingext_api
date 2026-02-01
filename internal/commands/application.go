@@ -104,6 +104,30 @@ var appTemplateInstallCmd = &cobra.Command{
 	},
 }
 
+var appInstanceGetCmd = &cobra.Command{
+	Use:   "get-instance",
+	Short: "get application instance output",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Just call the global interface
+
+		resp, err := AppAPI.GetAppInstance(appName, instanceName)
+		if err != nil {
+			return err
+		}
+		for _, output := range resp.Outputs {
+			if output.Sensitive {
+				cmd.PrintErrf("Output %s is sensitive and cannot be displayed\n", output.Name)
+				continue
+			}
+			cmd.Printf("Output %s: %s\n", output.Name, output.Value)
+		}
+
+		//cmd.PrintErrf("Application %s:%s added successfully: ", appName, instanceName)
+		//cmd.Println(id)
+		return nil
+	},
+}
+
 var appTemplateUnInstallCmd = &cobra.Command{
 	Use:   "uninstall",
 	Short: "uninstall application instance",
@@ -205,7 +229,7 @@ var appTemplateUpdateCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(applicationCmd)
-	applicationCmd.AddCommand(appTemplateListCmd, appTemplateInstallCmd, appTemplateUnInstallCmd, appTemplateAddCmd, appTemplateDelCmd, appTemplateUpdateCmd) // Add del/update similarly
+	applicationCmd.AddCommand(appTemplateListCmd, appTemplateInstallCmd, appTemplateUnInstallCmd, appTemplateAddCmd, appTemplateDelCmd, appTemplateUpdateCmd, appInstanceGetCmd) // Add del/update similarly
 
 	appTemplateInstallCmd.Flags().StringVar(&instanceName, "instance", "", "Instance name")
 	appTemplateInstallCmd.Flags().StringVar(&appName, "app", "", "Application name")
@@ -240,5 +264,11 @@ func init() {
 	_ = appTemplateUpdateCmd.MarkFlagRequired("app")
 
 	_ = appTemplateUpdateCmd.MarkFlagRequired("content")
+
+	appInstanceGetCmd.Flags().StringVar(&instanceName, "instance", "", "Instance name")
+	appInstanceGetCmd.Flags().StringVar(&appName, "app", "", "Application name")
+
+	_ = appInstanceGetCmd.MarkFlagRequired("instance")
+	_ = appInstanceGetCmd.MarkFlagRequired("app")
 
 }
