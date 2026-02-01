@@ -45,7 +45,13 @@ You can view your current configuration at any time:
 
 ```bash
 ingext config view
+```
 
+List all configured clusters or delete a cluster profile:
+
+```bash
+ingext config list
+ingext config delete --cluster <cluster-name>
 ```
 
 **Environment Variables**
@@ -66,7 +72,7 @@ export INGEXT_NAMESPACE=ingext
 | `--cluster` |  | _none_ | Target Kubernetes cluster (required unless set via config). |
 | `--namespace` | `-n` | `ingext` | Namespace of the ingext app. |
 | `--log-level` | `-l` | `warn` | Log level: `debug`, `info`, `warn`, or `error`. |
-| `--version` | `-v` | `false` | Print CLI version (`1.0.0`) and exit. |
+| `--version` | `-v` | `false` | Print CLI version (`1.1.0`) and exit. |
 
 ### Status (`status`)
 
@@ -104,7 +110,8 @@ ingext stream list-source
 ingext stream del-source --id <source-id>
 
 # Sinks
-ingext stream add-sink --name datalake-out --sink-type datalake --integration-id <integration-id>
+ingext stream add-sink --name datalake-out --sink-type datalake --datalake managed --index <index-name>
+ingext stream add-sink --name hec-out --sink-type hec --url https://hec.example --token <token>
 ingext stream add-sink --name webhook-out --sink-type webhook --url https://example.com/hook
 ingext stream list-sink
 ingext stream del-sink --id <sink-id>
@@ -120,7 +127,7 @@ ingext stream connect-sink --router-id <router-id> --sink-id <sink-id>
 Deploy data processors. Supports piping input via `-` and file loading via `@path`.
 
 ```bash
-ingext processor add --name filter-logic --content @./scripts/filter.js
+ingext processor add --name filter-logic --content @./scripts/filter.js [--type fpl_processor] [--desc "Filter logic"]
 cat ./scripts/transform.js | ingext processor add --name transform-logic --content -
 ingext processor list
 ingext processor del --name filter-logic
@@ -131,7 +138,9 @@ ingext processor del --name filter-logic
 Manage third-party connections.
 
 ```bash
-ingext integration add --integration slack --name alert-bot --description "Send alerts to Slack"
+ingext integration add --integration slack --name alert-bot --description "Send alerts to Slack" \
+  --config key1=value1 --config-bool enabled=true --config-int retries=3 \
+  --config-json 'tags=["a","b"]' --secret api_key=xxx --add-source
 ingext integration list
 ingext integration del --id <integration-id>
 ```
@@ -154,14 +163,32 @@ ingext datalake del-index --datalake my-datalake --index events
 ingext eks add-assumed-role --name ingest-role --roleArn <role-arn> [--externalId <external-id>]
 ingext eks list-assumed-role
 ingext eks del-assumed-role --id <role-id>
+ingext eks get-pod-role
+ingext eks test-assumed-role --roleArn <role-arn> [--externalId <external-id>]
 ```
 
 ### Applications (`application`)
 
 ```bash
+# List and manage templates
 ingext application list
+ingext application add --content @./template.yaml
+ingext application update --app <template> --content @./template.yaml
+ingext application del --app <template>
+
+# Install and manage instances
 ingext application install --app <template> --instance <instance> --displayName "My App" --config key=value --secret secretKey=value
 ingext application uninstall --app <template> --instance <instance>
+ingext application get-instance --app <template> --instance <instance>
+```
+
+### Import (`import`)
+
+Import resources from a GitHub repository.
+
+```bash
+ingext import processor --type fpl_processor
+ingext import application
 ```
 
 ## Development

@@ -263,6 +263,9 @@ func init() {
 	addSourceCmd.Flags().StringVar(&dataFormat, "format", "json", "Data Format")
 	addSourceCmd.Flags().StringVar(&dataCompression, "compression", "", "Data Compression")
 
+	addSourceCmd.Flags().StringVar(&url, "url", "", "URL for HEC source")
+	addSourceCmd.Flags().StringVar(&token, "token", "", "Token")
+
 	addSourceCmd.Flags().StringVar(&integrationID, "integration-id", "", "Integration ID")
 
 	_ = addSourceCmd.MarkFlagRequired("source-type")

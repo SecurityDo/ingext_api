@@ -127,6 +127,9 @@ func init() {
 	//streamAddCmd.AddCommand(streamAddSourceCmd)
 	// Add other leaf commands: sink, router, connection
 
+	delAssumedRoleCmd.Flags().StringVar(&roleID, "id", "", "Role ID to delete")
+	_ = delAssumedRoleCmd.MarkFlagRequired("id")
+
 	testAssumedRoleCmd.Flags().StringVar(&roleARN, "roleArn", "", "Role ARN to assume")
 	testAssumedRoleCmd.Flags().StringVar(&roleExternalID, "externalId", "", "External ID (optional)")
 
