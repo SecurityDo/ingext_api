@@ -105,7 +105,7 @@ Manage data pipelines (sources, sinks, routers).
 ```bash
 # Sources
 ingext stream add-source --name clickstream-v1 --source-type plugin --integration-id <integration-id>
-ingext stream add-source --name hec-ingest --source-type hec --url https://hec.example --token <token>
+ingext stream add-source --name hec-ingest --source-type hec
 ingext stream list-source
 ingext stream del-source --id <source-id>
 
