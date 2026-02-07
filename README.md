@@ -145,6 +145,25 @@ ingext integration list
 ingext integration del --id <integration-id>
 ```
 
+### KQL Search (`kql`)
+
+Run KQL queries against the datalake and display results as formatted tables.
+
+```bash
+# Inline query
+ingext kql "MyTable | where status == 200 | take 10"
+
+# Query from file
+ingext kql @query.kql
+
+# Save the full JSON response to a file
+ingext kql "MyTable | summarize count() by src" --output result.json
+```
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--output` | _none_ | Save the full JSON response to a file. |
+
 ### Data Lake (`datalake`)
 
 Manage datalakes and their indexes.
