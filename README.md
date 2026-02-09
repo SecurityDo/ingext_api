@@ -166,14 +166,23 @@ ingext kql "MyTable | summarize count() by src" --output result.json
 
 ### Data Lake (`datalake`)
 
-Manage datalakes and their indexes.
+Manage datalakes, indexes, and schemas.
 
 ```bash
+# Datalakes
 ingext datalake add --datalake my-datalake --managed --integration <integration-id>
 ingext datalake list
+
+# Indexes
 ingext datalake add-index --datalake my-datalake --index events --schema "ingext default"
 ingext datalake list-index --datalake my-datalake
 ingext datalake del-index --datalake my-datalake --index events
+
+# Schemas
+ingext datalake add-schema --name my-schema --schema @./schema.json [--description "My schema"]
+ingext datalake update-schema --name my-schema --schema @./schema.json [--description "Updated schema"]
+ingext datalake list-schema
+ingext datalake delete-schema --name my-schema
 ```
 
 ### EKS Pod Identity Roles (`eks`)
@@ -208,6 +217,7 @@ Import resources from a GitHub repository.
 ```bash
 ingext import processor --type fpl_processor
 ingext import application
+ingext import schema
 ```
 
 ## Development

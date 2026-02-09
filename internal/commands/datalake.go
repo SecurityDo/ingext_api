@@ -1,15 +1,24 @@
 package commands
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"text/tabwriter"
+
+	"github.com/SecurityDo/ingext_api/model"
 	"github.com/spf13/cobra"
 )
 
 var (
-	datalake    string
-	index       string
-	managed     bool
-	integration string
-	schema      string
+	datalake         string
+	index            string
+	managed          bool
+	integration      string
+	schema           string
+	schemaName       string
+	schemaDesc       string
+	schemaFile       string
 )
 
 var lakeCmd = &cobra.Command{
@@ -106,9 +115,109 @@ var lakeDeleteIndexCmd = &cobra.Command{
 	},
 }
 
+var lakeAddSchemaCmd = &cobra.Command{
+	Use:   "add-schema",
+	Short: "Add a schema to the datalake",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		content, err := os.ReadFile(schemaFile)
+		if err != nil {
+			return fmt.Errorf("failed to read schema file %s: %w", schemaFile, err)
+		}
+		cmd.PrintErrf("Adding schema %s\n", schemaName)
+		err = AppAPI.AddSchema(schemaName, schemaDesc, string(content))
+		if err != nil {
+			return err
+		}
+		cmd.PrintErrln("Schema added successfully")
+		return nil
+	},
+}
+
+var lakeListSchemaCmd = &cobra.Command{
+	Use:   "list-schema",
+	Short: "List all schemas",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		schemas, err := AppAPI.ListSchemas()
+		if err != nil {
+			return err
+		}
+		if len(schemas) == 0 {
+			cmd.PrintErrln("No schemas found.")
+			return nil
+		}
+
+		for _, entry := range schemas {
+			var table model.Table
+			if err := json.Unmarshal([]byte(entry.Content), &table); err != nil {
+				cmd.PrintErrf("Schema: %s (failed to decode: %v)\n", entry.Name, err)
+				continue
+			}
+
+			cmd.PrintErrf("Schema: %s\n", entry.Name)
+			if entry.Description != "" {
+				cmd.PrintErrf("Description: %s\n", entry.Description)
+			}
+
+			w := tabwriter.NewWriter(os.Stderr, 0, 0, 2, ' ', 0)
+			fmt.Fprintln(w, "NAME\tPHYSICAL TYPE\tLOGICAL TYPE\tNULLABLE")
+			fmt.Fprintln(w, "----\t-------------\t------------\t--------")
+			printFields(w, table.Fields, "")
+			w.Flush()
+			cmd.PrintErrln()
+		}
+		return nil
+	},
+}
+
+var lakeUpdateSchemaCmd = &cobra.Command{
+	Use:   "update-schema",
+	Short: "Update a schema",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		content, err := os.ReadFile(schemaFile)
+		if err != nil {
+			return fmt.Errorf("failed to read schema file %s: %w", schemaFile, err)
+		}
+		cmd.PrintErrf("Updating schema %s\n", schemaName)
+		err = AppAPI.UpdateSchema(schemaName, schemaDesc, string(content))
+		if err != nil {
+			return err
+		}
+		cmd.PrintErrln("Schema updated successfully")
+		return nil
+	},
+}
+
+var lakeDeleteSchemaCmd = &cobra.Command{
+	Use:   "delete-schema",
+	Short: "Delete a schema",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.PrintErrf("Deleting schema %s\n", schemaName)
+		err := AppAPI.DeleteSchema(schemaName)
+		if err != nil {
+			return err
+		}
+		cmd.PrintErrln("Schema deleted successfully")
+		return nil
+	},
+}
+
+func printFields(w *tabwriter.Writer, fields []*model.Field, prefix string) {
+	for _, f := range fields {
+		name := prefix + f.Name
+		nullable := ""
+		if f.Nullable {
+			nullable = "yes"
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", name, f.Type, f.ConvertedType, nullable)
+		if len(f.Fields) > 0 {
+			printFields(w, f.Fields, name+".")
+		}
+	}
+}
+
 func init() {
 	RootCmd.AddCommand(lakeCmd)
-	lakeCmd.AddCommand(lakeAddCmd, lakeListCmd, lakeAddIndexCmd, lakeListIndexCmd, lakeDeleteIndexCmd)
+	lakeCmd.AddCommand(lakeAddCmd, lakeListCmd, lakeAddIndexCmd, lakeListIndexCmd, lakeDeleteIndexCmd, lakeAddSchemaCmd, lakeListSchemaCmd, lakeUpdateSchemaCmd, lakeDeleteSchemaCmd)
 	//lakeAddCmd.AddCommand(lakeAddIndexCmd)
 
 	lakeAddCmd.Flags().StringVar(&datalake, "datalake", "", "datalake name")
@@ -135,4 +244,24 @@ func init() {
 	_ = lakeDeleteIndexCmd.MarkFlagRequired("datalake")
 	_ = lakeDeleteIndexCmd.MarkFlagRequired("index")
 
+	// Flags for 'datalake add-schema'
+	lakeAddSchemaCmd.Flags().StringVar(&schemaName, "name", "", "schema name")
+	lakeAddSchemaCmd.Flags().StringVar(&schemaDesc, "description", "", "schema description")
+	lakeAddSchemaCmd.Flags().StringVar(&schemaFile, "schema", "", "path to schema file")
+
+	_ = lakeAddSchemaCmd.MarkFlagRequired("name")
+	_ = lakeAddSchemaCmd.MarkFlagRequired("schema")
+
+	// Flags for 'datalake update-schema'
+	lakeUpdateSchemaCmd.Flags().StringVar(&schemaName, "name", "", "schema name")
+	lakeUpdateSchemaCmd.Flags().StringVar(&schemaDesc, "description", "", "schema description")
+	lakeUpdateSchemaCmd.Flags().StringVar(&schemaFile, "schema", "", "path to schema file")
+
+	_ = lakeUpdateSchemaCmd.MarkFlagRequired("name")
+	_ = lakeUpdateSchemaCmd.MarkFlagRequired("schema")
+
+	// Flags for 'datalake delete-schema'
+	lakeDeleteSchemaCmd.Flags().StringVar(&schemaName, "name", "", "schema name")
+
+	_ = lakeDeleteSchemaCmd.MarkFlagRequired("name")
 }

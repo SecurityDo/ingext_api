@@ -42,11 +42,25 @@ var importAppTemplateCmd = &cobra.Command{
 	},
 }
 
+var importDatalakeSchemaCmd = &cobra.Command{
+	Use:   "schema",
+	Short: "Import datalake schema",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		//fmt.Println("Listing processors...")
+
+		err := AppAPI.ImportLakeSchemas(repoName)
+		if err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
 // ingext processor add --name filter --content "@./scripts/filter.js"
 // echo "function process() { ... }" | ingext processor add --name filter --content -
 func init() {
 	RootCmd.AddCommand(importCmd)
-	importCmd.AddCommand(importProcessorCmd, importAppTemplateCmd)
+	importCmd.AddCommand(importProcessorCmd, importAppTemplateCmd, importDatalakeSchemaCmd)
 
 	importProcessorCmd.Flags().StringVar(&procType, "type", "fpl_processor", "Processor type (fpl_processor|fpl_receiver|fpl_packer|fpl_report)")
 

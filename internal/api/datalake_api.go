@@ -59,6 +59,50 @@ func (c *Client) ListDatalakeIndex(lake string) (entries []*model.DatalakeIndex,
 	return entries, nil
 }
 
+func (c *Client) ListSchemas() (entries []*model.SchemaEntry, err error) {
+	datalakeService := ingextAPI.NewDatalakeService(c.ingextClient)
+
+	entries, err = datalakeService.ListSchema()
+	if err != nil {
+		c.Logger.Error("failed to list schemas", "error", err)
+		return nil, fmt.Errorf("failed to list schemas: %w", err)
+	}
+	return entries, nil
+}
+
+func (c *Client) UpdateSchema(name, description, content string) error {
+	datalakeService := ingextAPI.NewDatalakeService(c.ingextClient)
+
+	err := datalakeService.UpdateSchema(name, description, content)
+	if err != nil {
+		c.Logger.Error("failed to update schema", "error", err)
+		return fmt.Errorf("failed to update schema: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) DeleteSchema(name string) error {
+	datalakeService := ingextAPI.NewDatalakeService(c.ingextClient)
+
+	err := datalakeService.DeleteSchema(name)
+	if err != nil {
+		c.Logger.Error("failed to delete schema", "error", err)
+		return fmt.Errorf("failed to delete schema: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) AddSchema(name, description, content string) error {
+	datalakeService := ingextAPI.NewDatalakeService(c.ingextClient)
+
+	err := datalakeService.AddSchema(name, description, content)
+	if err != nil {
+		c.Logger.Error("failed to add schema", "error", err)
+		return fmt.Errorf("failed to add schema: %w", err)
+	}
+	return nil
+}
+
 func (c *Client) DeleteDatalakeIndex(lake, index string) (err error) {
 
 	datalakeService := ingextAPI.NewDatalakeService(c.ingextClient)

@@ -78,3 +78,14 @@ func (s *RepoService) ImportAppTemplates(repoId string, filePaths []string) (err
 	}
 	return nil
 }
+
+func (s *RepoService) ImportLakeSchemas(repoId string, filePaths []string) (err error) {
+	req := &ImportRepoObjectsRequest{
+		ID:    repoId,
+		Paths: filePaths,
+	}
+	if err := s.call("platform_import_lake_schemas", req, nil); err != nil {
+		return err
+	}
+	return nil
+}

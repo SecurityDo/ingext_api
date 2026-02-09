@@ -94,3 +94,64 @@ func (s *DatalakeService) ListDatalakeIndex(datalake string) (entries []*model.D
 	return resp.Entries, nil
 
 }
+
+func (s *DatalakeService) ListSchema() (entries []*model.SchemaEntry, err error) {
+	request := &GenericDAORequest[model.SchemaEntry]{
+		Action: "list",
+	}
+	var resp GenericDaoListResponse[model.SchemaEntry]
+	if err := s.call("ingext_datalake_schema_dao", request, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Entries, nil
+
+}
+
+func (s *DatalakeService) UpdateSchema(name, description string, content string) error {
+	request := &GenericDAORequest[model.SchemaEntry]{
+		Action: "update",
+		Args: &GenericDAORequestArgs[model.SchemaEntry]{
+			Entry: &model.SchemaEntry{
+				Name:        name,
+				Description: description,
+				Content:     content,
+			},
+		},
+	}
+	if err := s.call("ingext_datalake_schema_dao", request, nil); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *DatalakeService) DeleteSchema(name string) error {
+	request := &GenericDAORequest[model.SchemaEntry]{
+		Action: "delete",
+		Args: &GenericDAORequestArgs[model.SchemaEntry]{
+			Id: name,
+		},
+	}
+	if err := s.call("ingext_datalake_schema_dao", request, nil); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *DatalakeService) AddSchema(name, description string, content string) (err error) {
+	request := &GenericDAORequest[model.SchemaEntry]{
+		Action: "add",
+		Args: &GenericDAORequestArgs[model.SchemaEntry]{
+			Entry: &model.SchemaEntry{
+				Name:        name,
+				Description: description,
+				Content:     content,
+			},
+		},
+	}
+	var resp GenericDaoListResponse[model.SchemaEntry]
+	if err := s.call("ingext_datalake_schema_dao", request, &resp); err != nil {
+		return err
+	}
+	return nil
+
+}
