@@ -208,6 +208,7 @@ func init() {
 	// Add new subcommands
 	configCmd.AddCommand(configListCmd)
 	configCmd.AddCommand(configDeleteCmd)
+	_ = configDeleteCmd.MarkFlagRequired("cluster")
 
 	// Configuration for 'config' command
 	// Default value "eks" is set here for the FLAG
