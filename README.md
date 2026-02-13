@@ -34,10 +34,10 @@ Before running commands, configure the target Kubernetes cluster and namespace. 
 
 ```bash
 # Set your default target
-ingext config set --cluster <k8s-cluster> --namespace <app-namespace> --context <kubectlContext>  --provider <eks|aks|gke>
+ingext config add --cluster <k8s-cluster> --namespace <app-namespace> --context <kubectlContext>  --provider <eks|aks|gke>
 
 # Example
-ingext config set --cluster datalake  --namespace ingext --provider eks --context arn:aws:eks:$Region:$AWSAccount:cluster/datalake 
+ingext config add --cluster datalake  --namespace ingext --provider eks --context arn:aws:eks:$Region:$AWSAccount:cluster/datalake 
 
 ```
 

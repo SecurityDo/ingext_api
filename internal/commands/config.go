@@ -26,10 +26,10 @@ var configCmd = &cobra.Command{
 	},
 }
 
-// Subcommand: SET
-var configSetCmd = &cobra.Command{
-	Use:   "set",
-	Short: "Set configuration values for a cluster profile",
+// Subcommand: ADD
+var configAddCmd = &cobra.Command{
+	Use:   "add",
+	Short: "Add configuration values for a cluster profile",
 	Run: func(cmd *cobra.Command, args []string) {
 		// 1. Identify which cluster profile we are editing
 		// 'cluster' is the global flag defined in root.go
@@ -202,7 +202,7 @@ var configViewCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(configCmd)
-	configCmd.AddCommand(configSetCmd)
+	configCmd.AddCommand(configAddCmd)
 	configCmd.AddCommand(configViewCmd)
 
 	// Add new subcommands
@@ -212,12 +212,12 @@ func init() {
 
 	// Configuration for 'config' command
 	// Default value "eks" is set here for the FLAG
-	configSetCmd.Flags().StringVar(&confProvider, "provider", "eks", "Provider (eks|aks|gke)")
-	configSetCmd.Flags().StringVar(&confContext, "context", "", "Kubeconfig context name")
+	configAddCmd.Flags().StringVar(&confProvider, "provider", "eks", "Provider (eks|aks|gke)")
+	configAddCmd.Flags().StringVar(&confContext, "context", "", "Kubeconfig context name")
 
-	_ = configSetCmd.MarkFlagRequired("context")
-	_ = configSetCmd.MarkFlagRequired("namespace")
-	_ = configSetCmd.MarkFlagRequired("cluster")
+	_ = configAddCmd.MarkFlagRequired("context")
+	_ = configAddCmd.MarkFlagRequired("namespace")
+	_ = configAddCmd.MarkFlagRequired("cluster")
 
 	// Set the global default for Viper as well (in case user views config without setting it)
 	viper.SetDefault("provider", "eks")
