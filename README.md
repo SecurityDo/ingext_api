@@ -30,14 +30,14 @@ install -m 755 ingext /usr/local/bin/.
 
 ## Configuration
 
-Before running commands, configure the target Kubernetes cluster and namespace. This saves settings to `~/.ingext/config.yaml`.
+Before running commands, configure the target Kubernetes cluster and namespace. This saves settings to `~/.ingext/config.yaml`. Profiles are keyed by `cluster:namespace`, allowing multiple profiles for the same cluster with different namespaces.
 
 ```bash
 # Set your default target
 ingext config add --cluster <k8s-cluster> --namespace <app-namespace> --context <kubectlContext>  --provider <eks|aks|gke>
 
-# Example
-ingext config add --cluster datalake  --namespace ingext --provider eks --context arn:aws:eks:$Region:$AWSAccount:cluster/datalake 
+# Example — creates profile keyed as "datalake:ingext"
+ingext config add --cluster datalake  --namespace ingext --provider eks --context arn:aws:eks:$Region:$AWSAccount:cluster/datalake
 
 ```
 
@@ -47,11 +47,11 @@ You can view your current configuration at any time:
 ingext config view
 ```
 
-List all configured clusters or delete a cluster profile:
+List all configured profiles or delete a profile:
 
 ```bash
 ingext config list
-ingext config delete --cluster <cluster-name>
+ingext config delete --cluster <cluster-name> --namespace <namespace>
 ```
 
 **Environment Variables**

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -35,26 +36,33 @@ func InitConfig() {
 	// If a config file is found, read it in.
 	_ = viper.ReadInConfig()
 
-	// --- ADD THIS BLOCK ---
 	// If a config file is loaded, hydrate the root variables from the active cluster
 	if viper.ConfigFileUsed() != "" {
 		current := viper.GetString("current-cluster")
 		if current != "" {
+			// current is a composite key like "datalake:ingext"
+			// Parse cluster and namespace from it
+			clusterPart := current
+			namespacePart := ""
+			if idx := strings.Index(current, ":"); idx >= 0 {
+				clusterPart = current[:idx]
+				namespacePart = current[idx+1:]
+			}
+
 			// Read values from the active profile
 			prefix := "clusters." + current + "."
 
-			// If the specific cluster has a value, override the root "default"
-			if v := viper.GetString(prefix + "namespace"); v != "" {
-				viper.Set("namespace", v)
-			}
 			if v := viper.GetString(prefix + "provider"); v != "" {
 				viper.Set("provider", v)
 			}
 			if v := viper.GetString(prefix + "context"); v != "" {
 				viper.Set("context", v)
 			}
-			// Ensure the 'cluster' key matches the current selection
-			viper.Set("cluster", current)
+			// Set cluster and namespace from the composite key
+			viper.Set("cluster", clusterPart)
+			if namespacePart != "" {
+				viper.Set("namespace", namespacePart)
+			}
 		}
 	}
 }
