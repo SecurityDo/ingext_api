@@ -8,7 +8,7 @@ import (
 	ingextModel "github.com/SecurityDo/ingext_api/model"
 )
 
-func (c *Client) AddUser(name, displayName, role, org string) error {
+func (c *Client) AddUser(name, displayName, role, org, oauth string) error {
 
 	// Use structured logging
 	//c.Logger.Info("adding user",
@@ -18,14 +18,25 @@ func (c *Client) AddUser(name, displayName, role, org string) error {
 
 	authService := ingextAPI.NewAuthService(c.ingextClient)
 
+	user := &ingextModel.UserEntry{
+		Username:     name,
+		Email:        name,
+		FirstName:    displayName,
+		Roles:        []string{role},
+		Organization: org,
+	}
+
+	switch oauth {
+	case "Azure":
+		user.OAuthProvider = "Azure AD"
+		user.OAuthFlag = true
+	case "Google":
+		user.OAuthProvider = "Google"
+		user.OAuthFlag = true
+	}
+
 	err := authService.AddUser(&ingextAPI.AddUserRequest{
-		User: &ingextModel.UserEntry{
-			Username:     name,
-			Email:        name,
-			FirstName:    displayName,
-			Roles:        []string{role},
-			Organization: org,
-		},
+		User: user,
 	})
 	if err != nil {
 		c.Logger.Error("failed to add user", "error", err, "name", name, "role", role)

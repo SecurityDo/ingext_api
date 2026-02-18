@@ -15,6 +15,7 @@ var (
 	authDisplayName string
 	authRole        string
 	authOrg         string
+	authOAuth       string
 )
 
 // Parent command
@@ -29,7 +30,7 @@ var userAddCmd = &cobra.Command{
 	Short: "Add a user",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		//cmd.PrintErrf("Adding user: %s (Role: %s)\n", authName, authRole)
-		err := AppAPI.AddUser(authName, authDisplayName, authRole, authOrg)
+		err := AppAPI.AddUser(authName, authDisplayName, authRole, authOrg, authOAuth)
 		if err != nil {
 			cmd.PrintErrf("Error adding user: %s %v\n", authName, err)
 			return err
@@ -139,6 +140,7 @@ func init() {
 	userAddCmd.Flags().StringVar(&authDisplayName, "displayName", "", "Display name")
 	userAddCmd.Flags().StringVar(&authRole, "role", "", "Role (admin|analyst)")
 	userAddCmd.Flags().StringVar(&authOrg, "org", "ingext", "Organization")
+	userAddCmd.Flags().StringVar(&authOAuth, "oauth", "", "OAuth provider (Azure|Google)")
 
 	// Mark required
 	_ = userAddCmd.MarkFlagRequired("name")
