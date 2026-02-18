@@ -36,15 +36,24 @@ var configAddCmd = &cobra.Command{
 		targetCluster := cluster
 		targetNamespace := namespace
 
-		// If user didn't provide --cluster, fall back to current-cluster
-		if targetCluster == "" {
-			targetCluster = viper.GetString("current-cluster")
-		}
-
-		if targetCluster == "" {
-			cmd.PrintErrln("Error: No cluster name specified. Use --cluster <name> to configure a profile.")
+		if cluster == "" {
+			cmd.PrintErrln("Error: --cluster is required.")
 			return
 		}
+		if namespace == "" {
+			cmd.PrintErrln("Error: --namespace is required.")
+			return
+		}
+
+		// If user didn't provide --cluster, fall back to current-cluster
+		//if targetCluster == "" {
+		//	targetCluster = viper.GetString("current-cluster")
+		//}
+
+		//if targetCluster == "" {
+		//	cmd.PrintErrln("Error: No cluster name specified. Use --cluster <name> to configure a profile.")
+		//	return
+		//}
 
 		// Build composite key
 		profileKey := targetCluster + ":" + targetNamespace
@@ -214,6 +223,15 @@ var configSetCmd = &cobra.Command{
 		// Build composite key
 		profileKey := cluster + ":" + namespace
 
+		// 2. Set "Current Cluster" to the composite key
+		viper.Set("current-cluster", profileKey)
+
+		// 3. Save values using Dot Notation (clusters.<profileKey>.<field>)
+		prefix := fmt.Sprintf("clusters.%s.", profileKey)
+
+		// We always save the provider (defaults to 'eks' via flag if not typed)
+		viper.Set(prefix+"provider", confProvider)
+
 		// Verify the profile exists
 		allClusters := viper.GetStringMap("clusters")
 		if _, exists := allClusters[profileKey]; !exists {
@@ -224,6 +242,30 @@ var configSetCmd = &cobra.Command{
 		// Switch current-cluster to the composite key
 		viper.Set("current-cluster", profileKey)
 
+		// We always save the provider (defaults to 'eks' via flag if not typed)
+		viper.Set(prefix+"provider", confProvider)
+
+		// If --context was not provided, inherit from an existing profile with the same cluster
+		if confContext == "" {
+			allClusters := viper.GetStringMap("clusters")
+			for key, val := range allClusters {
+				if strings.HasPrefix(key, cluster+":") && key != profileKey {
+					if details, ok := val.(map[string]interface{}); ok {
+						if ctx, ok := details["context"]; ok {
+							confContext = fmt.Sprintf("%v", ctx)
+							break
+						}
+					}
+				}
+			}
+			if confContext == "" {
+				cmd.PrintErrln("Error: --context is required when no existing profile exists for this cluster.")
+				return
+			}
+		}
+		viper.Set(prefix+"context", confContext)
+
+		// 4. Write to disk
 		if err := config.SaveConfig(); err != nil {
 			fmt.Printf("Error saving config: %v\n", err)
 			return
@@ -282,6 +324,9 @@ func init() {
 	_ = configSetCmd.MarkFlagRequired("namespace")
 	_ = configDeleteCmd.MarkFlagRequired("cluster")
 	_ = configDeleteCmd.MarkFlagRequired("namespace")
+
+	configSetCmd.Flags().StringVar(&confProvider, "provider", "eks", "Provider (eks|aks|gke)")
+	configSetCmd.Flags().StringVar(&confContext, "context", "", "Kubeconfig context name")
 
 	// Configuration for 'config' command
 	// Default value "eks" is set here for the FLAG
