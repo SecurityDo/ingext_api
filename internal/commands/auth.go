@@ -17,6 +17,8 @@ var (
 	authOrg         string
 	authOAuth       string
 	authDescription string
+	authUsername     string
+	authPolicy      string
 )
 
 // Parent command
@@ -127,11 +129,22 @@ var authAddTokenCmd = &cobra.Command{
 	},
 }*/
 
-// ... Repeat similar logic for del/update user/token ...
+var setUserSitePolicyCmd = &cobra.Command{
+	Use:   "set-user-site-policy",
+	Short: "Set site policy for a user",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		err := AppAPI.SetUserSitePolicy(authUsername, authPolicy)
+		if err != nil {
+			cmd.PrintErrf("Error setting site policy for user %s: %v\n", authUsername, err)
+			return err
+		}
+		return nil
+	},
+}
 
 func init() {
 	RootCmd.AddCommand(authCmd)
-	authCmd.AddCommand(userAddCmd, userDelCmd, userListCmd, tokenAddCmd, tokenDelCmd, tokenListCmd)
+	authCmd.AddCommand(userAddCmd, userDelCmd, userListCmd, tokenAddCmd, tokenDelCmd, tokenListCmd, setUserSitePolicyCmd)
 
 	// Add 'user' and 'token' to 'add'
 	//authAddCmd.AddCommand(authAddUserCmd, authDelUserCmd)
@@ -164,4 +177,8 @@ func init() {
 	// Mark required
 	_ = tokenDelCmd.MarkFlagRequired("name")
 
+	setUserSitePolicyCmd.Flags().StringVar(&authUsername, "username", "", "Username")
+	setUserSitePolicyCmd.Flags().StringVar(&authPolicy, "policy", "", "Policy name")
+	_ = setUserSitePolicyCmd.MarkFlagRequired("username")
+	_ = setUserSitePolicyCmd.MarkFlagRequired("policy")
 }

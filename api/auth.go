@@ -177,3 +177,22 @@ func (s *AuthService) ListToken() (tokens []*model.ApiTokenEntry, err error) {
 	}
 	return result.Entries, nil
 }
+
+type SetUserSitePolicyRequest struct {
+	Username   string `json:"username"`
+	PolicyName string `json:"policyName"`
+}
+
+func (s *AuthService) SetUserSitePolicy(username string, sitePolicy string) (err error) {
+	req := &SetUserSitePolicyRequest{
+		Username:   username,
+		PolicyName: sitePolicy,
+	}
+
+	_, err = s.client.GenericCall("api/auth", "setUserSitePolicy", req)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error setting site policy for user %s: %v\n", username, err.Error())
+		return err
+	}
+	return nil
+}

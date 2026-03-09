@@ -105,6 +105,17 @@ func (c *Client) DeleteToken(name string) (err error) {
 	return nil
 }
 
+func (c *Client) SetUserSitePolicy(username, policy string) error {
+	authService := ingextAPI.NewAuthService(c.ingextClient)
+
+	err := authService.SetUserSitePolicy(username, policy)
+	if err != nil {
+		c.Logger.Error("failed to set user site policy", "error", err, "username", username, "policy", policy)
+		return fmt.Errorf("failed to set user site policy: %w", err)
+	}
+	return nil
+}
+
 func (c *Client) ListToken() (tokens []*model.ApiTokenEntry, err error) {
 
 	// Use structured logging
