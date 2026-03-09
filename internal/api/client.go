@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/SecurityDo/ingext_api/client"
 )
@@ -72,7 +73,11 @@ func (c *Client) Init(cluster, namespace string, kubeContext string) error {
 		return fmt.Errorf("failed to get app secret token: %s", err)
 	}
 
-	configText, err := c.k8sClient.GetAppConfig(namespace, "ingext-community-config", "site_config.json")
+	configName := "ingext-community-config"
+	if strings.HasPrefix(namespace, "acc-") || strings.HasPrefix(namespace, "grid-") {
+		configName = "account-config"
+	}
+	configText, err := c.k8sClient.GetAppConfig(namespace, configName, "site_config.json")
 	if err != nil {
 		return fmt.Errorf("failed to get app config: %s", err)
 	}

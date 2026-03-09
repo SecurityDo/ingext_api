@@ -20,6 +20,26 @@ func NewPlatformService(client *client.IngextClient) *PlatformService {
 	return &PlatformService{client: client}
 }
 
+func ApiCallWithPrefix(client *client.IngextClient, prefix, function string, payload interface{}, out interface{}) error {
+	res, err := client.GenericCall(prefix, function, payload)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error calling %s: %v\n", function, err.Error())
+		return err
+	}
+	if out == nil {
+		return nil
+	}
+	if res == nil {
+		err = fmt.Errorf("empty response from %s", function)
+		fmt.Fprintln(os.Stderr, err.Error())
+		return err
+	}
+	if err := json.Unmarshal(res.GetBytes(), out); err != nil {
+		fmt.Errorf("Error parsing %s response: %v\n", function, err.Error())
+		return err
+	}
+	return nil
+}
 func ApiCall(client *client.IngextClient, function string, payload interface{}, out interface{}) error {
 	res, err := client.GenericCall("api/ds", function, payload)
 	if err != nil {
