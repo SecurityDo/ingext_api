@@ -17,3 +17,13 @@ func (c *Client) ListAccount() (resp *model.ListFluencyAccountsResponse, err err
 	}
 	return resp, nil
 }
+
+func (c *Client) AddSaasAccount(req *model.GridAddSaasAccountRequest) error {
+	service := ingextAPI.NewGridService(c.ingextClient)
+
+	if err := service.AddSaasAccount(req); err != nil {
+		c.Logger.Error("add saas account error", "error", err)
+		return fmt.Errorf("add saas account error: %w", err)
+	}
+	return nil
+}
