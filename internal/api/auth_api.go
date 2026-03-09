@@ -73,7 +73,7 @@ func (c *Client) ListUser() (users []*model.UserEntry, err error) {
 	return users, nil
 }
 
-func (c *Client) AddToken(name, displayName, role string) (token string, err error) {
+func (c *Client) AddToken(name, description, role string) (token string, err error) {
 
 	// Use structured logging
 	//c.Logger.Info("adding user",
@@ -83,7 +83,7 @@ func (c *Client) AddToken(name, displayName, role string) (token string, err err
 
 	authService := ingextAPI.NewAuthService(c.ingextClient)
 
-	token, err = authService.AddToken(name, displayName, role)
+	token, err = authService.AddToken(name, description, role)
 	if err != nil {
 		c.Logger.Error("failed to add token", "error", err, "name", name, "role", role)
 		return "", fmt.Errorf("failed to add token: %w", err)

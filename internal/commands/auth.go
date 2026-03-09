@@ -16,6 +16,7 @@ var (
 	authRole        string
 	authOrg         string
 	authOAuth       string
+	authDescription string
 )
 
 // Parent command
@@ -75,7 +76,7 @@ var tokenAddCmd = &cobra.Command{
 	Short: "Add a token",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		//cmd.PrintErrf("Adding user: %s (Role: %s)\n", authName, authRole)
-		token, err := AppAPI.AddToken(authName, authDisplayName, authRole)
+		token, err := AppAPI.AddToken(authName, authDescription, authRole)
 		if err != nil {
 			cmd.PrintErrf("Error adding token: %s %v\n", authName, err)
 			return err
@@ -151,7 +152,7 @@ func init() {
 	_ = userDelCmd.MarkFlagRequired("name")
 
 	tokenAddCmd.Flags().StringVar(&authName, "name", "", "Name of the token")
-	tokenAddCmd.Flags().StringVar(&authDisplayName, "displayName", "", "Display name")
+	tokenAddCmd.Flags().StringVar(&authDescription, "description", "", "Description of the token")
 	tokenAddCmd.Flags().StringVar(&authRole, "role", "", "Role (admin|analyst)")
 
 	// Mark required
