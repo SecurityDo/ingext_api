@@ -38,3 +38,11 @@ func (s *GridService) AddSaasAccount(req *model.GridAddSaasAccountRequest) (err 
 	}
 	return nil
 }
+
+func (s *GridService) DeleteSaasAccount(req *model.GridDeleteSaasAccountRequest) (err error) {
+	//var resp kqlModel.KQLSearchResponse
+	if err := s.gridCall("delete_saas_account", req, nil); err != nil {
+		return err
+	}
+	return nil
+}

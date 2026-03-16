@@ -60,9 +60,25 @@ var addAccountCmd = &cobra.Command{
 	},
 }
 
+var deleteAccountCmd = &cobra.Command{
+	Use:   "delete-account",
+	Short: "Delete a grid SaaS account",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		req := &model.GridDeleteSaasAccountRequest{
+			Name: accountName,
+			//Cluster: accountCluster,
+		}
+		if err := AppAPI.DeleteSaasAccount(req); err != nil {
+			return err
+		}
+		fmt.Printf("Account %q deleted successfully.\n", accountName)
+		return nil
+	},
+}
+
 func init() {
 	RootCmd.AddCommand(gridCmd)
-	gridCmd.AddCommand(listAccountCmd, addAccountCmd)
+	gridCmd.AddCommand(listAccountCmd, addAccountCmd, deleteAccountCmd)
 
 	addAccountCmd.Flags().StringVar(&accountName, "name", "", "Account name")
 	addAccountCmd.Flags().StringVar(&accountRegion, "region", "", "Region")
@@ -77,4 +93,8 @@ func init() {
 	_ = addAccountCmd.MarkFlagRequired("site-url")
 	_ = addAccountCmd.MarkFlagRequired("token")
 	_ = addAccountCmd.MarkFlagRequired("display-name")
+
+	deleteAccountCmd.Flags().StringVar(&accountName, "name", "", "Account name")
+	_ = deleteAccountCmd.MarkFlagRequired("name")
+
 }

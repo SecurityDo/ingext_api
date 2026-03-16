@@ -27,3 +27,13 @@ func (c *Client) AddSaasAccount(req *model.GridAddSaasAccountRequest) error {
 	}
 	return nil
 }
+
+func (c *Client) DeleteSaasAccount(req *model.GridDeleteSaasAccountRequest) error {
+	service := ingextAPI.NewGridService(c.ingextClient)
+
+	if err := service.DeleteSaasAccount(req); err != nil {
+		c.Logger.Error("delete saas account error", "error", err)
+		return fmt.Errorf("delete saas account error: %w", err)
+	}
+	return nil
+}

@@ -37,3 +37,10 @@ type GridAddSaasAccountRequest struct {
 	SiteURL     string `json:"siteURL"`
 	Token       string `json:"token"`
 }
+
+type GridDeleteSaasAccountRequest struct {
+	//Entry *FluencyAccount `json:"entry,omitempty"`
+	Name string `json:"name"`
+	//Region      string `json:"region"`
+	//Cluster string `json:"cluster"`
+}
