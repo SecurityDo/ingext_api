@@ -275,6 +275,79 @@ var configSetCmd = &cobra.Command{
 	},
 }
 
+// Subcommand: USE (switch active profile by positional argument)
+var configUseCmd = &cobra.Command{
+	Use:   "use [cluster:]namespace",
+	Short: "Switch the current profile by cluster and namespace",
+	Long: `Switch the active profile using a positional argument.
+
+If both cluster and namespace are provided (cluster:namespace), switches to that exact profile.
+If only namespace is provided, searches for a matching profile. If exactly one match is found,
+it switches to that profile. If multiple matches exist, lists them and asks you to be more specific.`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		arg := args[0]
+
+		var targetCluster, targetNamespace string
+		if idx := strings.Index(arg, ":"); idx >= 0 {
+			targetCluster = arg[:idx]
+			targetNamespace = arg[idx+1:]
+		} else {
+			targetNamespace = arg
+		}
+
+		if targetNamespace == "" {
+			return fmt.Errorf("namespace is required")
+		}
+
+		allClusters := viper.GetStringMap("clusters")
+
+		// If cluster is specified, do an exact match
+		if targetCluster != "" {
+			profileKey := targetCluster + ":" + targetNamespace
+			if _, exists := allClusters[profileKey]; !exists {
+				return fmt.Errorf("profile '%s' not found. Use 'ingext config list' to see available profiles", profileKey)
+			}
+			viper.Set("current-cluster", profileKey)
+			if err := config.SaveConfig(); err != nil {
+				return fmt.Errorf("error saving config: %w", err)
+			}
+			fmt.Printf("Switched to profile '%s'.\n", profileKey)
+			return nil
+		}
+
+		// Cluster not specified — find profiles matching the namespace
+		var matches []string
+		for key := range allClusters {
+			if idx := strings.Index(key, ":"); idx >= 0 {
+				if key[idx+1:] == targetNamespace {
+					matches = append(matches, key)
+				}
+			}
+		}
+
+		if len(matches) == 0 {
+			return fmt.Errorf("no profile found with namespace '%s'. Use 'ingext config list' to see available profiles", targetNamespace)
+		}
+		if len(matches) > 1 {
+			sort.Strings(matches)
+			cmd.PrintErrln("Multiple profiles match namespace '" + targetNamespace + "':")
+			for _, m := range matches {
+				cmd.PrintErrln("  " + m)
+			}
+			return fmt.Errorf("please specify the cluster: ingext config use <cluster>:%s", targetNamespace)
+		}
+
+		profileKey := matches[0]
+		viper.Set("current-cluster", profileKey)
+		if err := config.SaveConfig(); err != nil {
+			return fmt.Errorf("error saving config: %w", err)
+		}
+		fmt.Printf("Switched to profile '%s'.\n", profileKey)
+		return nil
+	},
+}
+
 // Subcommand: VIEW (Updated to show current-cluster logic)
 var configViewCmd = &cobra.Command{
 	Use:   "view",
@@ -320,6 +393,7 @@ func init() {
 	configCmd.AddCommand(configSetCmd)
 	configCmd.AddCommand(configListCmd)
 	configCmd.AddCommand(configDeleteCmd)
+	configCmd.AddCommand(configUseCmd)
 	_ = configSetCmd.MarkFlagRequired("cluster")
 	_ = configSetCmd.MarkFlagRequired("namespace")
 	_ = configDeleteCmd.MarkFlagRequired("cluster")

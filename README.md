@@ -47,6 +47,16 @@ You can view your current configuration at any time:
 ingext config view
 ```
 
+Switch between profiles quickly:
+
+```bash
+# Switch by cluster:namespace
+ingext config use datalake:ingext
+
+# Switch by namespace only (if unique across clusters)
+ingext config use ingext
+```
+
 List all configured profiles or delete a profile:
 
 ```bash
