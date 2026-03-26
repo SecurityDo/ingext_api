@@ -185,6 +185,24 @@ ingext datalake list-schema
 ingext datalake delete-schema --name my-schema
 ```
 
+### Syslog (`syslog`)
+
+Manage syslog ingestion configuration. Supported port types: `tcp`, `udp`, `tls`, `tls-rfc6587`.
+
+```bash
+# Get current syslog configuration
+ingext syslog get
+
+# Register syslog with specific port types
+ingext syslog register --port tcp --port udp
+
+# Update syslog port types
+ingext syslog update --port tcp --port tls
+
+# Delete syslog configuration
+ingext syslog delete
+```
+
 ### EKS Pod Identity Roles (`eks`)
 
 ```bash
