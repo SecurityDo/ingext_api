@@ -103,6 +103,11 @@ func (c *Client) Init(cluster, namespace string, kubeContext string) error {
 	return nil
 }
 
+// InitDirect initializes the client with a siteURL and token directly (no Kubernetes, no site config file).
+func (c *Client) InitDirect(siteURL, token string) {
+	c.ingextClient = client.NewIngextClient(siteURL, token, false, c.Logger)
+}
+
 // SetDebug enables or disables HTTP request/response dump logging (e.g. when --log-level debug).
 func (c *Client) SetDebug(debug bool) {
 	if c.ingextClient != nil {

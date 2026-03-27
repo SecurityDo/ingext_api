@@ -82,42 +82,7 @@ var RootCmd = &cobra.Command{
 		clusterName := viper.GetString("cluster")
 		namespace := viper.GetString("namespace")
 
-		siteConfigPath := viper.GetString("site-config")
-		siteName := viper.GetString("site")
-		if siteName == "" {
-			siteName = viper.GetString("default-site")
-		}
-		// Resolve site-config path: if not set, default to site_credentials.json in cwd
-		if siteConfigPath == "" {
-			if cwd, err := os.Getwd(); err == nil {
-				siteConfigPath = filepath.Join(cwd, "site_credentials.json")
-			}
-		}
-
-		useSiteConfig := false
-		if siteConfigPath != "" {
-			if _, err := os.Stat(siteConfigPath); err == nil {
-				useSiteConfig = true
-			}
-		}
-
-		if useSiteConfig {
-			// Initialize from site_credentials.json (no Kubernetes)
-			if clusterName != "" || namespace != "" {
-				// User passed cluster/namespace but we have site config; prefer site config
-			}
-		} else {
-			// Require cluster/namespace when not using site config
-			if clusterName == "" {
-				return fmt.Errorf("cluster name is required when not using site config. Run 'fluency config' or use --cluster, or place site_credentials.json in the current directory")
-			}
-		}
-
-		kubeCtx := viper.GetString("context")
 		levelValue := viper.GetString("log-level")
-		if clusterName == "" {
-			return fmt.Errorf("cluster name is required. Run 'ingext config' or use --cluster")
-		}
 
 		// 1. Configure the Handler options
 		opts := &slog.HandlerOptions{}
@@ -136,40 +101,66 @@ var RootCmd = &cobra.Command{
 		}
 
 		// 2. Create the Handler pointing to STDERR
-		// cmd.ErrOrStderr() ensures we use the proper writer wrapper from Cobra
 		handler := slog.NewTextHandler(cmd.ErrOrStderr(), opts)
 
 		// 3. Create the Logger
 		logger := slog.New(handler)
 
-		// If context is empty in config, we can default to empty string
-		// (which means client-go uses the "current-context" from ~/.kube/config)
-		if !useSiteConfig && kubeCtx == "" {
-
-			// Optional: log a warning
-			logger.Warn("no kube-context specified in config, using current system default")
-
-		}
-
 		// 4. Inject into your Client
-		// Now your client logs will go to Stderr, respecting the --log-level flag
 		AppAPI = api.NewClient(logger)
 
-		// 3. Initialize the Global API
-		//if err := AppAPI.Init(clusterName, namespace, kubeCtx); err != nil {
-		//	return fmt.Errorf("failed to initialize app API: %w", err)
-		//}
+		// 5. Initialize the Global API — three modes in priority order:
+		//    a) INGEXT_SITE_URL + INGEXT_TOKEN env vars (direct connect, no k8s)
+		//    b) site_credentials.json file
+		//    c) Kubernetes cluster
 
-		// 5. Initialize the Global API: site config (preferred) or Kubernetes
-		if useSiteConfig {
-			if err := AppAPI.InitFromSiteConfig(siteConfigPath, siteName); err != nil {
-				return fmt.Errorf("failed to initialize from site config: %w", err)
-			}
+		envSiteURL := os.Getenv("INGEXT_SITE_URL")
+		envToken := os.Getenv("INGEXT_TOKEN")
+
+		if envSiteURL != "" && envToken != "" {
+			// Mode (a): direct connect via environment variables
+			AppAPI.InitDirect(envSiteURL, envToken)
+			logger.Info("initialized ingext client from env vars", "siteURL", envSiteURL)
 		} else {
-			if err := AppAPI.Init(clusterName, namespace, kubeCtx); err != nil {
-				return fmt.Errorf("failed to initialize app API: %w", err)
+			siteConfigPath := viper.GetString("site-config")
+			siteName := viper.GetString("site")
+			if siteName == "" {
+				siteName = viper.GetString("default-site")
+			}
+			// Resolve site-config path: if not set, default to site_credentials.json in cwd
+			if siteConfigPath == "" {
+				if cwd, err := os.Getwd(); err == nil {
+					siteConfigPath = filepath.Join(cwd, "site_credentials.json")
+				}
+			}
+
+			useSiteConfig := false
+			if siteConfigPath != "" {
+				if _, err := os.Stat(siteConfigPath); err == nil {
+					useSiteConfig = true
+				}
+			}
+
+			if useSiteConfig {
+				// Mode (b): site_credentials.json
+				if err := AppAPI.InitFromSiteConfig(siteConfigPath, siteName); err != nil {
+					return fmt.Errorf("failed to initialize from site config: %w", err)
+				}
+			} else {
+				// Mode (c): Kubernetes
+				if clusterName == "" {
+					return fmt.Errorf("cluster name is required. Set INGEXT_SITE_URL + INGEXT_TOKEN env vars, place site_credentials.json in the current directory, or use --cluster")
+				}
+				kubeCtx := viper.GetString("context")
+				if kubeCtx == "" {
+					logger.Warn("no kube-context specified in config, using current system default")
+				}
+				if err := AppAPI.Init(clusterName, namespace, kubeCtx); err != nil {
+					return fmt.Errorf("failed to initialize app API: %w", err)
+				}
 			}
 		}
+
 		// 6. Enable HTTP request/response debug dumps when log level is debug
 		if strings.ToLower(levelValue) == "debug" {
 			AppAPI.SetDebug(true)

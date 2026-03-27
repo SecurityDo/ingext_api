@@ -79,8 +79,10 @@ export INGEXT_NAMESPACE=ingext
 
 | Flag | Shorthand | Default | Description |
 | --- | --- | --- | --- |
-| `--cluster` |  | _none_ | Target Kubernetes cluster (required unless set via config). |
+| `--cluster` |  | _none_ | Target Kubernetes cluster (required unless using site config). |
 | `--namespace` | `-n` | `ingext` | Namespace of the ingext app. |
+| `--site-config` |  | `./site_credentials.json` | Path to site credentials file (bypasses Kubernetes). |
+| `--site` |  | _none_ | Site hostname from tokenMap (e.g. `demo.cloud.fluencysecurity.com`). |
 | `--log-level` | `-l` | `warn` | Log level: `debug`, `info`, `warn`, or `error`. |
 | `--version` | `-v` | `false` | Print CLI version (`1.1.0`) and exit. |
 
@@ -99,13 +101,17 @@ Manage users and access tokens.
 ```bash
 # Users
 ingext auth add-user --name foo@gmail.com --role admin --displayName "Foo Bar" --org ingext
+ingext auth add-user --name foo@gmail.com --role admin --displayName "Foo Bar" --org ingext --oauth Azure
 ingext auth del-user --name foo@gmail.com
 ingext auth list-user
 
 # API tokens
-ingext auth add-token --name ci-bot --role analyst --displayName "CI Bot"
+ingext auth add-token --name ci-bot --role analyst --description "CI Bot"
 ingext auth del-token --name ci-bot
 ingext auth list-token
+
+# Site policy
+ingext auth set-user-site-policy --username foo@gmail.com --policy my-policy
 ```
 
 ### Streams (`stream`)
@@ -211,6 +217,73 @@ ingext syslog update --port tcp --port tls
 
 # Delete syslog configuration
 ingext syslog delete
+```
+
+### Grid (`grid`)
+
+Manage grid SaaS accounts.
+
+```bash
+# List all grid accounts
+ingext grid list-account
+
+# Add a SaaS account
+ingext grid add-account --name my-account --region us-east-1 --cluster prod \
+  --site-url https://example.fluencysecurity.com --token <token> --display-name "My Account"
+
+# Delete a SaaS account
+ingext grid delete-account --name my-account
+```
+
+### Collector (`collector`)
+
+List and check status of collectors.
+
+```bash
+# List all collectors
+ingext collector list
+
+# Get collector status
+ingext collector status --collector my-collector
+```
+
+### EventWatch (`eventwatch`)
+
+Search event watch summaries, timelines, and rules.
+
+```bash
+# Summary search (default: last 1 hour)
+ingext eventwatch search_summary --query "keyword"
+ingext eventwatch search_summary --query "keyword" --from <unix-ms> --to <unix-ms>
+
+# Timeline search (default: last 1 hour)
+ingext eventwatch search_timeline --query "keyword"
+
+# Rule search (no time range)
+ingext eventwatch search_rule --query "keyword"
+```
+
+### FPL (`fpl`)
+
+Run FPL v2 reports and retrieve task results.
+
+```bash
+# Run an FPL report from a JSON file
+ingext fpl run --file report.json
+
+# Get task status by ID
+ingext fpl get --id 123
+
+# Get task results by ID
+ingext fpl results --id 123
+```
+
+### Resource (`resource`)
+
+Search resources by type and customer.
+
+```bash
+ingext resource --resource-type office365User --customer _all_
 ```
 
 ### EKS Pod Identity Roles (`eks`)
