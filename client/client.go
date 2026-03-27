@@ -157,6 +157,10 @@ func NewIngextClient(siteURL string, token string, debugFlag bool, logger *slog.
 
 }
 
+func (r *IngextClient) SetDebug(debug bool) {
+	r.serviceClient.DebugFlag = debug
+}
+
 func (r *IngextClient) GenericCall(prefix string, functionName string, x interface{}) (res *fsb.JNode, err error) {
 	res, err = r.serviceClient.Call(prefix, functionName, x)
 

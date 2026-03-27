@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/SecurityDo/ingext_api/client"
+	"github.com/SecurityDo/ingext_api/internal/config"
 )
 
 // IngextAppAPI defines the contract for interacting with the backend
@@ -99,6 +100,30 @@ func (c *Client) Init(cluster, namespace string, kubeContext string) error {
 		//"token", token,
 	)
 
+	return nil
+}
+
+// SetDebug enables or disables HTTP request/response dump logging (e.g. when --log-level debug).
+func (c *Client) SetDebug(debug bool) {
+	if c.ingextClient != nil {
+		c.ingextClient.SetDebug(debug)
+	}
+}
+
+// InitFromSiteConfig initializes the client from site_credentials.json (no Kubernetes).
+// siteConfigPath is the path to site_credentials.json; site is the hostname key (e.g. "demo.cloud.fluencysecurity.com").
+// If site is empty, the first site in tokenMap is used.
+func (c *Client) InitFromSiteConfig(siteConfigPath, site string) error {
+	creds, err := config.LoadSiteCredentials(siteConfigPath)
+	if err != nil {
+		return err
+	}
+	baseURL, token, err := config.ResolveSite(creds, site)
+	if err != nil {
+		return err
+	}
+	c.ingextClient = client.NewIngextClient(baseURL, token, false, c.Logger)
+	c.Logger.Info("initialized ingext client from site config", "siteURL", baseURL)
 	return nil
 }
 

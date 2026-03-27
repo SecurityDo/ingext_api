@@ -252,6 +252,10 @@ type SimpleSearchOption struct {
 	SortField   string        `json:"sortField,omitempty"`
 	SortOrder   string        `json:"sortOrder,omitempty"`
 	Facets      *FacetsOption `json:"facets,omitempty"`
+
+	RangeFrom  int64  `json:"range_from"`
+	RangeTo    int64  `json:"range_to"`
+	RangeField string `json:"range_field"`
 }
 
 type FacetEntry struct {

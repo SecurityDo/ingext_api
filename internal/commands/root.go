@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/SecurityDo/ingext_api/internal/api"
@@ -21,6 +22,9 @@ var (
 	namespace   string
 	logLevel    string
 	showVersion bool
+
+	siteConfig string
+	site       string
 )
 
 const (
@@ -77,6 +81,38 @@ var RootCmd = &cobra.Command{
 		// 2. Load values from Viper (which now holds flags + config file values)
 		clusterName := viper.GetString("cluster")
 		namespace := viper.GetString("namespace")
+
+		siteConfigPath := viper.GetString("site-config")
+		siteName := viper.GetString("site")
+		if siteName == "" {
+			siteName = viper.GetString("default-site")
+		}
+		// Resolve site-config path: if not set, default to site_credentials.json in cwd
+		if siteConfigPath == "" {
+			if cwd, err := os.Getwd(); err == nil {
+				siteConfigPath = filepath.Join(cwd, "site_credentials.json")
+			}
+		}
+
+		useSiteConfig := false
+		if siteConfigPath != "" {
+			if _, err := os.Stat(siteConfigPath); err == nil {
+				useSiteConfig = true
+			}
+		}
+
+		if useSiteConfig {
+			// Initialize from site_credentials.json (no Kubernetes)
+			if clusterName != "" || namespace != "" {
+				// User passed cluster/namespace but we have site config; prefer site config
+			}
+		} else {
+			// Require cluster/namespace when not using site config
+			if clusterName == "" {
+				return fmt.Errorf("cluster name is required when not using site config. Run 'fluency config' or use --cluster, or place site_credentials.json in the current directory")
+			}
+		}
+
 		kubeCtx := viper.GetString("context")
 		levelValue := viper.GetString("log-level")
 		if clusterName == "" {
@@ -108,7 +144,7 @@ var RootCmd = &cobra.Command{
 
 		// If context is empty in config, we can default to empty string
 		// (which means client-go uses the "current-context" from ~/.kube/config)
-		if kubeCtx == "" {
+		if !useSiteConfig && kubeCtx == "" {
 
 			// Optional: log a warning
 			logger.Warn("no kube-context specified in config, using current system default")
@@ -120,8 +156,23 @@ var RootCmd = &cobra.Command{
 		AppAPI = api.NewClient(logger)
 
 		// 3. Initialize the Global API
-		if err := AppAPI.Init(clusterName, namespace, kubeCtx); err != nil {
-			return fmt.Errorf("failed to initialize app API: %w", err)
+		//if err := AppAPI.Init(clusterName, namespace, kubeCtx); err != nil {
+		//	return fmt.Errorf("failed to initialize app API: %w", err)
+		//}
+
+		// 5. Initialize the Global API: site config (preferred) or Kubernetes
+		if useSiteConfig {
+			if err := AppAPI.InitFromSiteConfig(siteConfigPath, siteName); err != nil {
+				return fmt.Errorf("failed to initialize from site config: %w", err)
+			}
+		} else {
+			if err := AppAPI.Init(clusterName, namespace, kubeCtx); err != nil {
+				return fmt.Errorf("failed to initialize app API: %w", err)
+			}
+		}
+		// 6. Enable HTTP request/response debug dumps when log level is debug
+		if strings.ToLower(levelValue) == "debug" {
+			AppAPI.SetDebug(true)
 		}
 
 		return nil
@@ -141,12 +192,18 @@ func init() {
 	cobra.OnInitialize(config.InitConfig)
 
 	// Define global flags
+	RootCmd.PersistentFlags().StringVar(&siteConfig, "site-config", "", "path to site_credentials.json (default: ./site_credentials.json)")
+	RootCmd.PersistentFlags().StringVar(&site, "site", "", "site hostname from tokenMap (e.g. demo.cloud.fluencysecurity.com); if empty and using site config, first site is used")
+
 	RootCmd.PersistentFlags().StringVar(&cluster, "cluster", "", "k8s cluster name")
 	RootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "ingext", "namespace of the ingext app")
 	RootCmd.PersistentFlags().StringVarP(&logLevel, "log-level", "l", defaultLogLevel, "log level: debug, info, warn, error")
 	RootCmd.Flags().BoolVarP(&showVersion, "version", "v", false, "show version")
 	RootCmd.Version = appVersion
 	// Bind global flags to viper so they can be accessed anywhere
+	viper.BindPFlag("site-config", RootCmd.PersistentFlags().Lookup("site-config"))
+	viper.BindPFlag("site", RootCmd.PersistentFlags().Lookup("site"))
+
 	viper.BindPFlag("cluster", RootCmd.PersistentFlags().Lookup("cluster"))
 	viper.BindPFlag("namespace", RootCmd.PersistentFlags().Lookup("namespace"))
 	viper.BindPFlag("log-level", RootCmd.PersistentFlags().Lookup("log-level"))
