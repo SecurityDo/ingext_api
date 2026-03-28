@@ -73,3 +73,10 @@ type GenericDaoRequest[T any] struct {
 * ingext_syslog_update_config (kargs: syslogUDP, syslogTCP, syslogTLS, tlsRfc6587)
 * ingext_syslog_delete_config — delete syslog config
 
+== notification APIs: (with prefix 'api/ds')
+
+* platform_notification_endpoint_dao (dao-style: action = list | add | delete)
+** list — list all notification endpoints (EndpointConfig)
+** add — add an email notification endpoint (kargs: name, integration, action, email{to, cc})
+** delete — delete a notification endpoint (kargs: id)
+
