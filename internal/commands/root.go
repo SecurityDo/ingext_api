@@ -109,6 +109,11 @@ var RootCmd = &cobra.Command{
 		// 4. Inject into your Client
 		AppAPI = api.NewClient(logger)
 
+		// ai register / unregister: no cluster/site/env; URL and token come from flags on the ai command.
+		if IsAiTokenCommand(cmd) {
+			return nil
+		}
+
 		// 5. Initialize the Global API — three modes in priority order:
 		//    a) INGEXT_SITE_URL + INGEXT_TOKEN env vars (direct connect, no k8s)
 		//    b) site_credentials.json file

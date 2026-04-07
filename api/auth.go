@@ -143,9 +143,7 @@ func (s *AuthService) DeleteToken(name string) (err error) {
 	req := &tokenRequest{
 		Action: "delete",
 		Args: &tokenRequestArgs{
-			Entry: &model.ApiTokenEntry{
-				Name: name,
-			},
+			Name: name,
 		},
 	}
 	_, err = s.client.GenericCall("api/auth", "api_token", req)
