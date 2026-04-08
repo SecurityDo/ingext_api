@@ -114,6 +114,54 @@ ingext auth list-token
 ingext auth set-user-site-policy --username foo@gmail.com --policy my-policy
 ```
 
+### AI (`ai`)
+
+Register or remove API tokens on a **GPT API** host using explicit URL and bearer token. These commands do **not** use Kubernetes or the main Ingext site from config—you pass `--url` and `--token` on the `ai` command each time.
+
+The same RPC style as `auth add-token` / `del-token` is used (`api/auth` `api_token`). For **register**, the role is fixed to `admin`. CLI flags map to API fields as follows:
+
+| CLI flag | API field |
+| --- | --- |
+| `--account` | `name` |
+| `--display-name` | `description` |
+
+**Flags (on `ingext ai`, shared by subcommands)**
+
+| Flag | Required | Description |
+| --- | --- | --- |
+| `--url` | Yes | GPT API base URL (e.g. `https://example.com`). |
+| `--token` | Yes | Bearer token used to authorize calls to that API. |
+
+**Register**
+
+| Flag | Required | Description |
+| --- | --- | --- |
+| `--account` | Yes | Account identifier (sent as `name`). |
+| `--display-name` | No | Display label (sent as `description`). |
+
+On success, the new API token string is printed to **stdout** (logs go to stderr).
+
+**Unregister**
+
+| Flag | Required | Description |
+| --- | --- | --- |
+| `--account` | Yes | Account to remove (same `name` as used at registration). |
+
+```bash
+# Create a token (role admin); token value is printed on stdout
+ingext ai register \
+  --url 'https://gpt.example.com' \
+  --token "$GPT_BEARER_TOKEN" \
+  --account my-service-account \
+  --display-name "My integration"
+
+# Remove the token for that account
+ingext ai unregister \
+  --url 'https://gpt.example.com' \
+  --token "$GPT_BEARER_TOKEN" \
+  --account my-service-account
+```
+
 ### Streams (`stream`)
 
 Manage data pipelines (sources, sinks, routers).
