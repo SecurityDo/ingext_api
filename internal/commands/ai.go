@@ -25,7 +25,7 @@ var aiRegisterCmd = &cobra.Command{
 	Short: "Add an API token on the GPT API (role admin)",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// API expects name and description; CLI uses --account and --display-name.
-		token, err := AppAPI.GPTAIAuthService(aiURL, aiToken).AddToken(aiRegisterAccount, aiRegisterDisplayName, "admin")
+		token, err := AppAPI.GPTAIAuthService(aiURL, aiToken).AddToken(aiRegisterAccount, aiRegisterDisplayName, "client")
 		if err != nil {
 			cmd.PrintErrf("Error registering GPT AI token: %s %v\n", aiRegisterAccount, err)
 			return err
