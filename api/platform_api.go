@@ -606,6 +606,27 @@ func (s *PlatformService) TestAssumedRole(roleARN string, externalID string) (er
 
 }
 
+func (s *PlatformService) AddLocalAssumedRole(name string, roleARN string, externalID string) (id string, err error) {
+	request := &GenericDAORequest[model.InstanceRole]{
+		Action: "add",
+		Args: &GenericDAORequestArgs[model.InstanceRole]{
+			//Id:    args.Id,
+			Entry: &model.InstanceRole{
+				DisplayName: name,
+				RoleARN:     roleARN,
+				ExternalID:  externalID,
+				Local:       true, // will be set by the server, but set here for clarity
+			},
+		},
+	}
+	var resp GenericDaoAddResponse
+	if err := s.call("platform_instancerole_add_local", request, &resp); err != nil {
+		return "", err
+	}
+	return resp.ID, nil
+
+}
+
 func (s *PlatformService) AddAssumedRole(name string, roleARN string, externalID string) (id string, err error) {
 	request := &GenericDAORequest[model.InstanceRole]{
 		Action: "add",

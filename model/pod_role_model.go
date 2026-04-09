@@ -11,6 +11,7 @@ type InstanceRole struct {
 	ExternalID  string    `json:"externalID"`
 	RoleARN     string    `json:"roleARN"`
 	CreatedOn   time.Time `json:"createdOn"`
+	Local       bool      `json:"local,omitempty"`
 }
 
 type InstanceRoleTestRequest struct {

@@ -54,6 +54,23 @@ var testAssumedRoleCmd = &cobra.Command{
 	},
 }
 
+var addLocalAssumedRoleCmd = &cobra.Command{
+	Use:   "add-local-assumed-role",
+	Short: "Add Local Assumed Roles for Pod Identity Agent",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.PrintErrln("Adding AWS Role...")
+		// Just call the global interface
+		id, err := AppAPI.AddLocalAssumedRole(roleName, roleARN, roleExternalID)
+		if err != nil {
+			return err
+		}
+
+		cmd.PrintErrln("Role added successfully: ", id)
+		fmt.Println(id)
+		return nil
+	},
+}
+
 var addAssumedRoleCmd = &cobra.Command{
 	Use:   "add-assumed-role",
 	Short: "Add Assumed Roles for Pod Identity Agent",
@@ -113,7 +130,7 @@ var listAssumedRoleCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(eksCmd)
-	eksCmd.AddCommand(addAssumedRoleCmd, delAssumedRoleCmd, listAssumedRoleCmd, getPodRoleCmd, testAssumedRoleCmd) // Add del/update similarly
+	eksCmd.AddCommand(addAssumedRoleCmd, addLocalAssumedRoleCmd, delAssumedRoleCmd, listAssumedRoleCmd, getPodRoleCmd, testAssumedRoleCmd) // Add del/update similarly
 
 	addAssumedRoleCmd.Flags().StringVar(&roleName, "name", "", "displayName of the role")
 	//addAssumedRoleCmd.Flags().StringVar(&roleDisplayName, "displayName", "", "Display name")
@@ -123,6 +140,15 @@ func init() {
 	// Mark required
 	_ = addAssumedRoleCmd.MarkFlagRequired("name")
 	_ = addAssumedRoleCmd.MarkFlagRequired("roleArn")
+
+	addLocalAssumedRoleCmd.Flags().StringVar(&roleName, "name", "", "displayName of the role")
+	//addLocalAssumedRoleCmd.Flags().StringVar(&roleDisplayName, "displayName", "", "Display name")
+	addLocalAssumedRoleCmd.Flags().StringVar(&roleARN, "roleArn", "", "Role ARN to assume")
+	addLocalAssumedRoleCmd.Flags().StringVar(&roleExternalID, "externalId", "", "External ID (optional)")
+
+	// Mark required
+	_ = addLocalAssumedRoleCmd.MarkFlagRequired("name")
+	_ = addLocalAssumedRoleCmd.MarkFlagRequired("roleArn")
 
 	//streamAddCmd.AddCommand(streamAddSourceCmd)
 	// Add other leaf commands: sink, router, connection

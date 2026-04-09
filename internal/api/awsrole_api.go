@@ -33,6 +33,19 @@ func (c *Client) TestAssumedRole(roleARN, roleExternalID string) (err error) {
 	}
 	return nil
 }
+func (c *Client) AddLocalAssumedRole(roleName, roleARN, roleExternalID string) (id string, err error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	id, err = platformService.AddLocalAssumedRole(roleName, roleARN, roleExternalID)
+
+	if err != nil {
+		c.Logger.Error("failed to add assumed role", "error", err, "name", roleName, "role", roleARN)
+		return "", fmt.Errorf("failed to add user: %w", err)
+	}
+	return id, nil
+}
+
 func (c *Client) AddAssumedRole(roleName, roleARN, roleExternalID string) (id string, err error) {
 
 	platformService := ingextAPI.NewPlatformService(c.ingextClient)
