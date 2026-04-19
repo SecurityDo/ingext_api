@@ -19,6 +19,7 @@ var (
 	schemaName       string
 	schemaDesc       string
 	schemaFile       string
+	schemaListJSON   bool
 )
 
 var lakeCmd = &cobra.Command{
@@ -141,6 +142,29 @@ var lakeListSchemaCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
+		if schemaListJSON {
+			// Machine-readable output: dump each entry's name + description and
+			// the raw schema JSON from Content. stdout so downstream tools can
+			// parse it.
+			type entryOut struct {
+				Name        string          `json:"name"`
+				Description string          `json:"description,omitempty"`
+				Schema      json.RawMessage `json:"schema,omitempty"`
+			}
+			out := make([]entryOut, 0, len(schemas))
+			for _, entry := range schemas {
+				o := entryOut{Name: entry.Name, Description: entry.Description}
+				if entry.Content != "" {
+					o.Schema = json.RawMessage(entry.Content)
+				}
+				out = append(out, o)
+			}
+			enc := json.NewEncoder(cmd.OutOrStdout())
+			enc.SetIndent("", "  ")
+			return enc.Encode(out)
+		}
+
 		if len(schemas) == 0 {
 			cmd.PrintErrln("No schemas found.")
 			return nil
@@ -166,6 +190,40 @@ var lakeListSchemaCmd = &cobra.Command{
 			cmd.PrintErrln()
 		}
 		return nil
+	},
+}
+
+var lakeDescribeSchemaCmd = &cobra.Command{
+	Use:   "describe-schema",
+	Short: "Print one schema's full JSON",
+	Long: `Fetch one schema by name and print its full JSON content to stdout.
+Use this to feed a specific table's schema to downstream tools.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if schemaName == "" {
+			return fmt.Errorf("--name is required")
+		}
+		schemas, err := AppAPI.ListSchemas()
+		if err != nil {
+			return err
+		}
+		for _, entry := range schemas {
+			if entry.Name != schemaName {
+				continue
+			}
+			if entry.Content == "" {
+				return fmt.Errorf("schema %q has no content", schemaName)
+			}
+			// Re-indent for readability; falls back to raw if parsing fails.
+			var any interface{}
+			if err := json.Unmarshal([]byte(entry.Content), &any); err != nil {
+				fmt.Fprintln(cmd.OutOrStdout(), entry.Content)
+				return nil
+			}
+			enc := json.NewEncoder(cmd.OutOrStdout())
+			enc.SetIndent("", "  ")
+			return enc.Encode(any)
+		}
+		return fmt.Errorf("schema %q not found", schemaName)
 	},
 }
 
@@ -217,7 +275,10 @@ func printFields(w *tabwriter.Writer, fields []*model.Field, prefix string) {
 
 func init() {
 	RootCmd.AddCommand(lakeCmd)
-	lakeCmd.AddCommand(lakeAddCmd, lakeListCmd, lakeAddIndexCmd, lakeListIndexCmd, lakeDeleteIndexCmd, lakeAddSchemaCmd, lakeListSchemaCmd, lakeUpdateSchemaCmd, lakeDeleteSchemaCmd)
+	lakeCmd.AddCommand(lakeAddCmd, lakeListCmd, lakeAddIndexCmd, lakeListIndexCmd, lakeDeleteIndexCmd, lakeAddSchemaCmd, lakeListSchemaCmd, lakeDescribeSchemaCmd, lakeUpdateSchemaCmd, lakeDeleteSchemaCmd)
+	lakeListSchemaCmd.Flags().BoolVar(&schemaListJSON, "json", false, "emit all schemas as a JSON array on stdout")
+	lakeDescribeSchemaCmd.Flags().StringVar(&schemaName, "name", "", "schema name to describe")
+	_ = lakeDescribeSchemaCmd.MarkFlagRequired("name")
 	//lakeAddCmd.AddCommand(lakeAddIndexCmd)
 
 	lakeAddCmd.Flags().StringVar(&datalake, "datalake", "", "datalake name")

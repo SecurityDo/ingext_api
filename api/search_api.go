@@ -36,3 +36,27 @@ func (s *SearchService) KQLSearch(kql string) (resp *kqlModel.KQLSearchResponse,
 	}
 	return resp, nil
 }
+
+// KQLValidateRequest is the payload for the kql_validate endpoint.
+type KQLValidateRequest struct {
+	KQL string `json:"kql"`
+}
+
+// KQLValidateResponse mirrors lakeAPI.KQLValidateResponse.
+type KQLValidateResponse struct {
+	OK             bool   `json:"ok"`
+	Error          string `json:"error,omitempty"`
+	Table          string `json:"table,omitempty"`
+	TimeRangeFound bool   `json:"timeRangeFound,omitempty"`
+}
+
+// KQLValidate parses a KQL query on the search service without executing it.
+// Returns a structured response; the CLI treats OK=false as a parser error.
+func (s *SearchService) KQLValidate(kql string) (*KQLValidateResponse, error) {
+	request := &KQLValidateRequest{KQL: kql}
+	var resp KQLValidateResponse
+	if err := s.call("kql_validate", request, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
