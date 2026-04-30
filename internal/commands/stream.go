@@ -21,6 +21,7 @@ var (
 
 	processorName string
 	routerName    string
+	pipeName      string
 
 	sourceID string // For connecting source to router
 	routerID string // For connecting source to router
@@ -61,6 +62,21 @@ var connectRouterCmd = &cobra.Command{
 		}
 		cmd.PrintErrln("Stream connection added successfully: source ", sourceID, " to router ", routerID)
 		//cmd.Println(resourceID)
+		return nil
+	},
+}
+
+var updatePipeProcessorCmd = &cobra.Command{
+	Use:   "update-pipe-processor",
+	Short: "Update the processor for a pipe within a router",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		fmt.Println("Updating pipe processor...")
+
+		err := AppAPI.UpdatePipeProcessor(routerName, pipeName, processorName)
+		if err != nil {
+			return err
+		}
+		cmd.PrintErrln("Pipe processor updated successfully: router ", routerName, " pipe ", pipeName, " processor ", processorName)
 		return nil
 	},
 }
@@ -256,7 +272,7 @@ var addSinkCmd = &cobra.Command{
 
 func init() {
 	RootCmd.AddCommand(streamCmd)
-	streamCmd.AddCommand(addSourceCmd, delSourceCmd, listSourceCmd, addSinkCmd, delSinkCmd, listSinkCmd, addRouterCmd, connectRouterCmd, connectSinkCmd) // Add del/update similarly
+	streamCmd.AddCommand(addSourceCmd, delSourceCmd, listSourceCmd, addSinkCmd, delSinkCmd, listSinkCmd, addRouterCmd, connectRouterCmd, connectSinkCmd, updatePipeProcessorCmd) // Add del/update similarly
 
 	addSourceCmd.Flags().StringVar(&sourceType, "source-type", "", "data source type: plugin, s3, hec, webhook ")
 	addSourceCmd.Flags().StringVar(&resourceName, "name", "", "Name")
@@ -303,5 +319,13 @@ func init() {
 
 	_ = connectSinkCmd.MarkFlagRequired("sink-id")
 	_ = connectSinkCmd.MarkFlagRequired("router-id")
+
+	updatePipeProcessorCmd.Flags().StringVar(&routerName, "router", "", "Router name")
+	updatePipeProcessorCmd.Flags().StringVar(&pipeName, "pipe", "", "Pipe name")
+	updatePipeProcessorCmd.Flags().StringVar(&processorName, "processor", "", "Processor name")
+
+	_ = updatePipeProcessorCmd.MarkFlagRequired("router")
+	_ = updatePipeProcessorCmd.MarkFlagRequired("pipe")
+	_ = updatePipeProcessorCmd.MarkFlagRequired("processor")
 
 }

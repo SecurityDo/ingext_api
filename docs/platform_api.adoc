@@ -258,6 +258,16 @@ type PipeUpdateReq struct {
 }
 ----
 
+== platform_pipe_update_processor
+
+----
+type PipeProcessorUpdateReq struct {
+	RouterName    string `json:"routerName"`
+	PipeName      string `json:"pipeName"`
+	ProcessorName string `json:"processorName"`
+}
+----
+
 == platform_processor_validate
 
 ----

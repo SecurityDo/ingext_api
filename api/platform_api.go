@@ -102,6 +102,12 @@ type PipeUpdateReq struct {
 	PipeConfig *model.StreamPipeConfig `json:"pipeConfig"`
 }
 
+type PipeProcessorUpdateReq struct {
+	RouterName    string `json:"routerName"`
+	PipeName      string `json:"pipeName"`
+	ProcessorName string `json:"processorName"`
+}
+
 type FPLProcessorValidateRequest struct {
 	Name   string `json:"name"`
 	Script string `json:"script"`
@@ -1021,6 +1027,11 @@ func (s *PlatformService) UpdateRouterPipes(req *RouterUpdatePipesReq) error {
 // UpdatePipe updates a pipe configuration on a router.
 func (s *PlatformService) UpdatePipe(req *PipeUpdateReq) error {
 	return s.call("platform_pipe_update", req, nil)
+}
+
+// UpdatePipeProcessor sets the processor for a pipe identified by router and pipe name.
+func (s *PlatformService) UpdatePipeProcessor(req *PipeProcessorUpdateReq) error {
+	return s.call("platform_pipe_update_processor", req, nil)
 }
 
 // EventTail retrieves recent events for a component.

@@ -184,6 +184,7 @@ ingext stream del-sink --id <sink-id>
 ingext stream add-router --processor my-processor --router-name main-router
 ingext stream connect-router --source-id <source-id> --router-id <router-id>
 ingext stream connect-sink --router-id <router-id> --sink-id <sink-id>
+ingext stream update-pipe-processor --router <router-name> --pipe <pipe-name> --processor <processor-name>
 ```
 
 ### Processors (`processor`)

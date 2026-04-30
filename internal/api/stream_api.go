@@ -150,6 +150,23 @@ func (c *Client) SetRouterSink(routerID, sinkID string) (err error) {
 	return nil
 }
 
+func (c *Client) UpdatePipeProcessor(routerName, pipeName, processorName string) (err error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	err = platformService.UpdatePipeProcessor(&api.PipeProcessorUpdateReq{
+		RouterName:    routerName,
+		PipeName:      pipeName,
+		ProcessorName: processorName,
+	})
+
+	if err != nil {
+		c.Logger.Error("failed to update pipe processor", "error", err)
+		return fmt.Errorf("failed to update pipe processor: %s", err.Error())
+	}
+	return nil
+}
+
 func (c *Client) SetSourceRouter(sourceID, routerID string) (err error) {
 
 	platformService := ingextAPI.NewPlatformService(c.ingextClient)
