@@ -21,8 +21,8 @@ func (s *SearchService) call(function string, payload interface{}, out interface
 
 type KQLSearchRequest struct {
 	Index     string `json:"index,omitempty"`
-	RangeFrom int64  `json:"range_from"`
-	RangeTo   int64  `json:"range_to"`
+	RangeFrom int64  `json:"rangeFrom"`
+	RangeTo   int64  `json:"rangeTo"`
 	KQL       string `json:"kql,omitempty"`
 }
 
