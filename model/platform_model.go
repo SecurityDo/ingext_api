@@ -85,6 +85,11 @@ type SyslogSourceConfig struct {
 
 type RedisSinkConfig struct {
 	Redis *RedisConfig `json:"redis"`
+
+	// if not set, defaults to "managed-default". The fsbv2 RedisSink reads these
+	// and stamps them onto each message so LavaDB writes to the named index.
+	Datalake      string `json:"datalake,omitempty"`      // the data lake name, e.g. "managed"
+	DatalakeIndex string `json:"datalakeIndex,omitempty"` // the data lake index, e.g. "Office365"
 }
 
 type S3SinkConfig struct {
