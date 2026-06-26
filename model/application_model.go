@@ -198,6 +198,7 @@ type InputParameter struct {
 	Value        string       `json:"value,omitempty" yaml:"value,omitempty"`
 	IsList       bool         `json:"isList,omitempty" yaml:"isList,omitempty"`
 	Enums        []*EnumValue `json:"enums,omitempty" yaml:"enums,omitempty"`
+	DependsOn    string       `json:"dependsOn,omitempty" yaml:"dependsOn,omitempty"`
 
 	ValueRef *ValueReference `json:"valueRef,omitempty" yaml:"valueRef,omitempty"`
 }
