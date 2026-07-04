@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 	"os"
 	"time"
 
@@ -16,11 +17,12 @@ import (
 )
 
 type HTTPService struct {
-	url       string
-	client    *http.Client
-	DebugFlag bool
-	token     string
-	logger    *slog.Logger
+	url         string
+	client      *http.Client
+	DebugFlag   bool
+	token       string
+	gridAccount string
+	logger      *slog.Logger
 }
 
 func NewHTTPService(url string, logger *slog.Logger) *HTTPService {
@@ -56,6 +58,12 @@ func (r *HTTPService) SetToken(token string) {
 	r.token = token
 }
 
+// SetGridAccount sets the tenant account to target through a provider proxy.
+// When set, "?gridaccount=<account>" is appended to every request URL.
+func (r *HTTPService) SetGridAccount(account string) {
+	r.gridAccount = account
+}
+
 func (r *HTTPService) Call(prefix string, functionName string, input interface{}) (result *fsb.JNode, err error) {
 	remoteReq := new(fsb.CallRequest)
 	remoteReq.Function = functionName
@@ -74,6 +82,10 @@ func (r *HTTPService) Call(prefix string, functionName string, input interface{}
 	fullUrl := fmt.Sprintf("%s/%s/%s", r.url, prefix, functionName)
 	if prefix == "" {
 		fullUrl = fmt.Sprintf("%s/%s", r.url, functionName)
+	}
+	if r.gridAccount != "" {
+		// Provider proxy: forward this call to the given tenant account.
+		fullUrl = fmt.Sprintf("%s?gridaccount=%s", fullUrl, url.QueryEscape(r.gridAccount))
 	}
 	req, err := http.NewRequest("POST", fullUrl, bytes.NewBuffer(reqStr))
 	req.Header.Set("Content-Type", "application/json")
@@ -159,6 +171,12 @@ func NewIngextClient(siteURL string, token string, debugFlag bool, logger *slog.
 
 func (r *IngextClient) SetDebug(debug bool) {
 	r.serviceClient.DebugFlag = debug
+}
+
+// SetGridAccount targets a tenant account via the provider proxy; each request
+// gets "?gridaccount=<account>" appended.
+func (r *IngextClient) SetGridAccount(account string) {
+	r.serviceClient.SetGridAccount(account)
 }
 
 func (r *IngextClient) GenericCall(prefix string, functionName string, x interface{}) (res *fsb.JNode, err error) {

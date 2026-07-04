@@ -115,6 +115,15 @@ func (c *Client) SetDebug(debug bool) {
 	}
 }
 
+// SetTenant targets a tenant account through the provider proxy. When set, every
+// request has "?gridaccount=<tenant>" appended so the provider forwards it to the
+// tenant account. No-op if tenant is empty.
+func (c *Client) SetTenant(tenant string) {
+	if tenant != "" && c.ingextClient != nil {
+		c.ingextClient.SetGridAccount(tenant)
+	}
+}
+
 // InitFromSiteConfig initializes the client from site_credentials.json (no Kubernetes).
 // siteConfigPath is the path to site_credentials.json; site is the hostname key (e.g. "demo.cloud.fluencysecurity.com").
 // If site is empty, the first site in tokenMap is used.

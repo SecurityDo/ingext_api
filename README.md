@@ -83,8 +83,11 @@ export INGEXT_NAMESPACE=ingext
 | `--namespace` | `-n` | `ingext` | Namespace of the ingext app. |
 | `--site-config` |  | `./site_credentials.json` | Path to site credentials file (bypasses Kubernetes). |
 | `--site` |  | _none_ | Site hostname from tokenMap (e.g. `demo.cloud.fluencysecurity.com`). |
+| `--gridaccount` |  | _none_ | Target a tenant account through the provider proxy. When set, `?gridaccount=<account>` is appended to every request so the provider forwards it to that tenant account. |
 | `--log-level` | `-l` | `warn` | Log level: `debug`, `info`, `warn`, or `error`. |
 | `--version` | `-v` | `false` | Print CLI version (`1.1.0`) and exit. |
+
+> **Provider accounts:** with provider credentials (URL + token) you can operate on any of your tenant accounts without per-tenant credentials — just add `--gridaccount <account>`. The provider acts as a proxy and forwards the call to that tenant. Example: `ingext --gridaccount acme-corp grid list-account`.
 
 ### Status (`status`)
 

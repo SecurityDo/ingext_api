@@ -23,8 +23,9 @@ var (
 	logLevel    string
 	showVersion bool
 
-	siteConfig string
-	site       string
+	siteConfig  string
+	site        string
+	gridAccount string
 )
 
 const (
@@ -166,7 +167,13 @@ var RootCmd = &cobra.Command{
 			}
 		}
 
-		// 6. Enable HTTP request/response debug dumps when log level is debug
+		// 6. Target a tenant account via the provider proxy, if requested.
+		if acct := viper.GetString("gridaccount"); acct != "" {
+			AppAPI.SetTenant(acct)
+			logger.Info("targeting tenant account via provider proxy", "gridaccount", acct)
+		}
+
+		// 7. Enable HTTP request/response debug dumps when log level is debug
 		if strings.ToLower(levelValue) == "debug" {
 			AppAPI.SetDebug(true)
 		}
@@ -190,6 +197,7 @@ func init() {
 	// Define global flags
 	RootCmd.PersistentFlags().StringVar(&siteConfig, "site-config", "", "path to site_credentials.json (default: ./site_credentials.json)")
 	RootCmd.PersistentFlags().StringVar(&site, "site", "", "site hostname from tokenMap (e.g. demo.cloud.fluencysecurity.com); if empty and using site config, first site is used")
+	RootCmd.PersistentFlags().StringVar(&gridAccount, "gridaccount", "", "target a tenant account through the provider proxy (appends ?gridaccount=<account> to requests)")
 
 	RootCmd.PersistentFlags().StringVar(&cluster, "cluster", "", "k8s cluster name")
 	RootCmd.PersistentFlags().StringVarP(&namespace, "namespace", "n", "ingext", "namespace of the ingext app")
@@ -199,6 +207,7 @@ func init() {
 	// Bind global flags to viper so they can be accessed anywhere
 	viper.BindPFlag("site-config", RootCmd.PersistentFlags().Lookup("site-config"))
 	viper.BindPFlag("site", RootCmd.PersistentFlags().Lookup("site"))
+	viper.BindPFlag("gridaccount", RootCmd.PersistentFlags().Lookup("gridaccount"))
 
 	viper.BindPFlag("cluster", RootCmd.PersistentFlags().Lookup("cluster"))
 	viper.BindPFlag("namespace", RootCmd.PersistentFlags().Lookup("namespace"))
