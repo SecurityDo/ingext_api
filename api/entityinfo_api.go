@@ -99,6 +99,54 @@ func (s *EntityInfoService) DeleteTable(name string) error {
 	return s.call(entityInfoTableDAO, req, nil)
 }
 
+// --- entityinfo_table_export / entityinfo_table_import ---
+
+const (
+	entityInfoTableExport = "entityinfo_table_export"
+	entityInfoTableImport = "entityinfo_table_import"
+)
+
+// EntityTableExportRequest is the request for entityinfo_table_export.
+type EntityTableExportRequest struct {
+	Entity string `json:"entity"`
+}
+
+// EntityTableExportResponse is the CSV export result from entityinfo_table_export.
+type EntityTableExportResponse struct {
+	Content string `json:"content"`
+	Skip    int    `json:"skip"`
+	Ok      int    `json:"ok"`
+}
+
+// EntityTableImportRequest is the request for entityinfo_table_import.
+type EntityTableImportRequest struct {
+	Entity      string `json:"entity"`
+	FileContent string `json:"fileContent,omitempty"`
+}
+
+// ExportTable exports the rows of an entity table as CSV content, returning the
+// content along with the counts of exported (ok) and skipped rows.
+func (s *EntityInfoService) ExportTable(entity string) (*EntityTableExportResponse, error) {
+	req := &EntityTableExportRequest{
+		Entity: entity,
+	}
+	var resp EntityTableExportResponse
+	if err := s.call(entityInfoTableExport, req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// ImportTable replaces the rows of an entity table from CSV file content. The
+// header row of fileContent must match the table's existing fields.
+func (s *EntityInfoService) ImportTable(entity, fileContent string) error {
+	req := &EntityTableImportRequest{
+		Entity:      entity,
+		FileContent: fileContent,
+	}
+	return s.call(entityInfoTableImport, req, nil)
+}
+
 // --- entityinfo_entry_dao ---
 
 // EntityEntryDAORequestArgs holds the id/entry payload for an entry DAO action.
