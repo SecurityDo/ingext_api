@@ -214,6 +214,62 @@ describe("EventWatchService", () => {
       },
     });
   });
+
+  it("listRule calls eventwatch_bucket_dao with action=list and unwraps entries", async () => {
+    const { ingext, cap } = makeIngext(() => ({
+      entries: [{ name: "rule-a", group: "g1", disabled: false }],
+      tags: ["t1"],
+      groups: ["g1"],
+    }));
+    const res = await ingext.eventwatch.listRule();
+    expect(cap.url).toBe("https://x.example/api/ds/eventwatch_bucket_dao");
+    expect(cap.body).toMatchObject({ kargs: { action: "list" } });
+    expect(res.entries[0]?.name).toBe("rule-a");
+    expect(res.tags).toEqual(["t1"]);
+    expect(res.groups).toEqual(["g1"]);
+  });
+
+  it("getRule calls action=get with the id and unwraps entry", async () => {
+    const { ingext, cap } = makeIngext(() => ({ entry: { name: "rule-a", group: "g1" } }));
+    const entry = await ingext.eventwatch.getRule("rule-a");
+    expect(cap.url).toBe("https://x.example/api/ds/eventwatch_bucket_dao");
+    expect(cap.body).toMatchObject({ kargs: { action: "get", args: { id: "rule-a" } } });
+    expect(entry?.name).toBe("rule-a");
+  });
+
+  it("getRule returns null when no entry is present", async () => {
+    const { ingext } = makeIngext(() => ({ entry: null }));
+    const entry = await ingext.eventwatch.getRule("missing");
+    expect(entry).toBeNull();
+  });
+
+  it("addRule calls action=add with the entry", async () => {
+    const { ingext, cap } = makeIngext(() => ({}));
+    await ingext.eventwatch.addRule({ name: "rule-a", group: "g1" } as never);
+    expect(cap.body).toMatchObject({
+      kargs: { action: "add", args: { entry: { name: "rule-a", group: "g1" } } },
+    });
+  });
+
+  it("updateRule calls action=update with the entry", async () => {
+    const { ingext, cap } = makeIngext(() => ({}));
+    await ingext.eventwatch.updateRule({ name: "rule-a", group: "g1" } as never);
+    expect(cap.body).toMatchObject({
+      kargs: { action: "update", args: { entry: { name: "rule-a" } } },
+    });
+  });
+
+  it("toggleRule calls action=toggle with the id", async () => {
+    const { ingext, cap } = makeIngext(() => ({}));
+    await ingext.eventwatch.toggleRule("rule-a");
+    expect(cap.body).toMatchObject({ kargs: { action: "toggle", args: { id: "rule-a" } } });
+  });
+
+  it("deleteRule calls action=delete with the id", async () => {
+    const { ingext, cap } = makeIngext(() => ({}));
+    await ingext.eventwatch.deleteRule("rule-a");
+    expect(cap.body).toMatchObject({ kargs: { action: "delete", args: { id: "rule-a" } } });
+  });
 });
 
 describe("ResourceService", () => {

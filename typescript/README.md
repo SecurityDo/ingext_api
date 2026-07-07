@@ -65,6 +65,14 @@ const summary  = await ingext.eventwatch.summarySearch("",  now - 3_600_000, now
 const timeline = await ingext.eventwatch.timelineSearch("", now - 3_600_000, now);
 const rules    = await ingext.eventwatch.ruleSearch("");
 
+// eventwatch rules (eventwatch_bucket_dao)
+const ruleList = await ingext.eventwatch.listRule();
+const rule     = await ingext.eventwatch.getRule("my_rule");
+await ingext.eventwatch.addRule(rule!);
+await ingext.eventwatch.updateRule(rule!);
+await ingext.eventwatch.toggleRule("my_rule");
+await ingext.eventwatch.deleteRule("my_rule");
+
 // fpl
 const taskID = await ingext.fpl.runReport({ reportName: "my-report" });
 const status = await ingext.fpl.getTaskByID(taskID);

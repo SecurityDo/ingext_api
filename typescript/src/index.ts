@@ -15,7 +15,7 @@ export { ApplicationService } from "./services/application.js";
 export { AuthService } from "./services/auth.js";
 export { CollectorService } from "./services/collector.js";
 export { DatalakeService } from "./services/datalake.js";
-export { EventWatchService } from "./services/eventwatch.js";
+export { EventWatchService, type EventWatchRuleListResponse } from "./services/eventwatch.js";
 export { FPLService } from "./services/fpl.js";
 export { GridService } from "./services/grid.js";
 export { NotificationService } from "./services/notification.js";
