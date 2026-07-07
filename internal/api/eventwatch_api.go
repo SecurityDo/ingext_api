@@ -39,3 +39,65 @@ func (c *Client) RuleSearch(searchString string) (*model.ElasticSearchResult, er
 	}
 	return resp, nil
 }
+
+// ListRule lists all eventwatch rules via the eventwatch_bucket_dao API.
+func (c *Client) ListRule() (*fluencyAPI.EventWatchRuleListResponse, error) {
+	svc := fluencyAPI.NewEventWatchService(c.ingextClient)
+	resp, err := svc.ListRule()
+	if err != nil {
+		c.Logger.Error("failed to list eventwatch rules", "error", err)
+		return nil, fmt.Errorf("failed to list eventwatch rules: %w", err)
+	}
+	return resp, nil
+}
+
+// GetRule fetches a single eventwatch rule by name via the eventwatch_bucket_dao API.
+func (c *Client) GetRule(name string) (*model.EventWatchBucket, error) {
+	svc := fluencyAPI.NewEventWatchService(c.ingextClient)
+	resp, err := svc.GetRule(name)
+	if err != nil {
+		c.Logger.Error("failed to get eventwatch rule", "name", name, "error", err)
+		return nil, fmt.Errorf("failed to get eventwatch rule %q: %w", name, err)
+	}
+	return resp, nil
+}
+
+// AddRule creates a new eventwatch rule via the eventwatch_bucket_dao API.
+func (c *Client) AddRule(entry *model.EventWatchBucket) error {
+	svc := fluencyAPI.NewEventWatchService(c.ingextClient)
+	if err := svc.AddRule(entry); err != nil {
+		c.Logger.Error("failed to add eventwatch rule", "error", err)
+		return fmt.Errorf("failed to add eventwatch rule: %w", err)
+	}
+	return nil
+}
+
+// UpdateRule updates an existing eventwatch rule via the eventwatch_bucket_dao API.
+func (c *Client) UpdateRule(entry *model.EventWatchBucket) error {
+	svc := fluencyAPI.NewEventWatchService(c.ingextClient)
+	if err := svc.UpdateRule(entry); err != nil {
+		c.Logger.Error("failed to update eventwatch rule", "error", err)
+		return fmt.Errorf("failed to update eventwatch rule: %w", err)
+	}
+	return nil
+}
+
+// ToggleRule flips the disabled state of an eventwatch rule via the eventwatch_bucket_dao API.
+func (c *Client) ToggleRule(name string) error {
+	svc := fluencyAPI.NewEventWatchService(c.ingextClient)
+	if err := svc.ToggleRule(name); err != nil {
+		c.Logger.Error("failed to toggle eventwatch rule", "name", name, "error", err)
+		return fmt.Errorf("failed to toggle eventwatch rule %q: %w", name, err)
+	}
+	return nil
+}
+
+// DeleteRule removes an eventwatch rule via the eventwatch_bucket_dao API.
+func (c *Client) DeleteRule(name string) error {
+	svc := fluencyAPI.NewEventWatchService(c.ingextClient)
+	if err := svc.DeleteRule(name); err != nil {
+		c.Logger.Error("failed to delete eventwatch rule", "name", name, "error", err)
+		return fmt.Errorf("failed to delete eventwatch rule %q: %w", name, err)
+	}
+	return nil
+}

@@ -94,6 +94,94 @@ func (s *EventWatchService) RuleSearch(searchString string) (*model.ElasticSearc
 	return &resp, nil
 }
 
+// --- EventWatch rule DAO (backed by the eventwatch_bucket_dao endpoint) ---
+
+// EventWatchRuleGetResponse wraps the single-entry response returned by the
+// eventwatch_bucket_dao "get" action.
+type EventWatchRuleGetResponse struct {
+	Entry *model.EventWatchBucket `json:"entry"`
+}
+
+// EventWatchRuleListResponse wraps the response returned by the
+// eventwatch_bucket_dao "list" action.
+type EventWatchRuleListResponse struct {
+	Entries []*model.EventWatchBucket `json:"entries"`
+	Tags    []string                  `json:"tags"`
+	Groups  []string                  `json:"groups"`
+}
+
+// ListRule returns all eventwatch rules along with the distinct tags and groups.
+func (s *EventWatchService) ListRule() (*EventWatchRuleListResponse, error) {
+	req := &GenericDAORequest[model.EventWatchBucket]{
+		Action: "list",
+	}
+	var resp EventWatchRuleListResponse
+	if err := s.call("eventwatch_bucket_dao", req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// GetRule fetches a single eventwatch rule by name. When name is empty the first
+// available rule is returned.
+func (s *EventWatchService) GetRule(name string) (*model.EventWatchBucket, error) {
+	req := &GenericDAORequest[model.EventWatchBucket]{
+		Action: "get",
+		Args: &GenericDAORequestArgs[model.EventWatchBucket]{
+			Id: name,
+		},
+	}
+	var resp EventWatchRuleGetResponse
+	if err := s.call("eventwatch_bucket_dao", req, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Entry, nil
+}
+
+// AddRule creates a new eventwatch rule.
+func (s *EventWatchService) AddRule(entry *model.EventWatchBucket) error {
+	req := &GenericDAORequest[model.EventWatchBucket]{
+		Action: "add",
+		Args: &GenericDAORequestArgs[model.EventWatchBucket]{
+			Entry: entry,
+		},
+	}
+	return s.call("eventwatch_bucket_dao", req, nil)
+}
+
+// UpdateRule updates an existing eventwatch rule.
+func (s *EventWatchService) UpdateRule(entry *model.EventWatchBucket) error {
+	req := &GenericDAORequest[model.EventWatchBucket]{
+		Action: "update",
+		Args: &GenericDAORequestArgs[model.EventWatchBucket]{
+			Entry: entry,
+		},
+	}
+	return s.call("eventwatch_bucket_dao", req, nil)
+}
+
+// ToggleRule flips the disabled state of an eventwatch rule identified by name.
+func (s *EventWatchService) ToggleRule(name string) error {
+	req := &GenericDAORequest[model.EventWatchBucket]{
+		Action: "toggle",
+		Args: &GenericDAORequestArgs[model.EventWatchBucket]{
+			Id: name,
+		},
+	}
+	return s.call("eventwatch_bucket_dao", req, nil)
+}
+
+// DeleteRule removes an eventwatch rule identified by name.
+func (s *EventWatchService) DeleteRule(name string) error {
+	req := &GenericDAORequest[model.EventWatchBucket]{
+		Action: "delete",
+		Args: &GenericDAORequestArgs[model.EventWatchBucket]{
+			Id: name,
+		},
+	}
+	return s.call("eventwatch_bucket_dao", req, nil)
+}
+
 type ElasticSearchRequest struct {
 	Options *SimpleSearchOption `json:"options,omitempty"`
 }
