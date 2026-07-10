@@ -11,6 +11,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	fsb "github.com/SecurityDo/ingext_api/fsb"
@@ -117,7 +118,11 @@ func (r *HTTPService) Call(prefix string, functionName string, input interface{}
 	body, _ := io.ReadAll(resp.Body)
 	//fmt.Println("response Body:", string(body))
 	if resp.StatusCode != 200 {
+		bodyStr := strings.TrimSpace(string(body))
 		r.logger.Error("HTTP ERROR from local http service %s: %s\n", r.url, resp.Status)
+		if bodyStr != "" {
+			return result, fmt.Errorf("HTTP Error from Local HTTP service %s: %s: %s", r.url, resp.Status, bodyStr)
+		}
 		return result, fmt.Errorf("HTTP Error from Local HTTP service %s: %s", r.url, resp.Status)
 	}
 	var res fsb.CallResponse
