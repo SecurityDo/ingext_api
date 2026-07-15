@@ -32,6 +32,20 @@ func (s *CollectorService) CollectorList() ([]*model.CollectorForWeb, error) {
 	return out.Entries, nil
 }
 
+// CollectorImportKargs is the payload for collector_import (kargs: collector).
+type CollectorImportKargs struct {
+	Collector *model.CollectorT `json:"collector"`
+}
+
+// CollectorImport calls the collector_import API to recreate an existing collector
+// on this site with its token preserved, which is how a collector is migrated from
+// one site to another without re-enrolling the agent. The collector name must not
+// already exist on the target site; createdOn is reset by the server.
+func (s *CollectorService) CollectorImport(collector *model.CollectorT) error {
+	payload := CollectorImportKargs{Collector: collector}
+	return s.call("collector_import", payload, nil)
+}
+
 // CollectorStatusKargs is the payload for collector_status (kargs: collector + cargs).
 type CollectorStatusKargs struct {
 	Collector string                 `json:"collector"`

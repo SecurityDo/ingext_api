@@ -48,6 +48,7 @@ type GenericDaoRequest[T any] struct {
 == collector APIs: (with prefix 'api/ds')
 
 * collector_list — returns entries of CollectorForWeb
+* collector_import (kargs: collector) — import a CollectorT, keeping its token, to migrate a collector between sites
 * get_system_status (kargs: collector, cargs) — get collector status
 
 == eventwatch / overview APIs: (with prefix 'api/ds')
