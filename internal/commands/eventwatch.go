@@ -16,6 +16,7 @@ var (
 	eventwatchFrom    int64
 	eventwatchTo      int64
 	eventwatchName    string
+	eventwatchGroup   string
 	eventwatchContent string
 )
 
@@ -180,6 +181,19 @@ var eventwatchRuleDeleteCmd = &cobra.Command{
 	},
 }
 
+var eventwatchGroupDeleteCmd = &cobra.Command{
+	Use:   "group_delete",
+	Short: "Delete an eventwatch rule group by name",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		count, err := AppAPI.DeleteRuleGroup(eventwatchGroup)
+		if err != nil {
+			return err
+		}
+		cmd.PrintErrf("Group '%s' deleted successfully (%d rules)\n", eventwatchGroup, count)
+		return nil
+	},
+}
+
 // loadEventwatchRule reads an EventWatchBucket JSON definition from the --content
 // flag, which accepts inline JSON, an "@path" file reference, or "-" for stdin.
 func loadEventwatchRule(cmd *cobra.Command) (*model.EventWatchBucket, error) {
@@ -261,6 +275,7 @@ func init() {
 		eventwatchRuleUpdateCmd,
 		eventwatchRuleToggleCmd,
 		eventwatchRuleDeleteCmd,
+		eventwatchGroupDeleteCmd,
 	)
 
 	eventwatchSummarySearchCmd.Flags().StringVar(&eventwatchQuery, "query", "", "Search query")
@@ -286,4 +301,7 @@ func init() {
 
 	eventwatchRuleDeleteCmd.Flags().StringVar(&eventwatchName, "name", "", "Rule name")
 	_ = eventwatchRuleDeleteCmd.MarkFlagRequired("name")
+
+	eventwatchGroupDeleteCmd.Flags().StringVar(&eventwatchGroup, "group", "", "Rule group name")
+	_ = eventwatchGroupDeleteCmd.MarkFlagRequired("group")
 }

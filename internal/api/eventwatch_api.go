@@ -101,3 +101,15 @@ func (c *Client) DeleteRule(name string) error {
 	}
 	return nil
 }
+
+// DeleteRuleGroup removes an eventwatch rule group via the eventwatch_bucket_delete_group
+// API and returns the number of rules deleted.
+func (c *Client) DeleteRuleGroup(group string) (int, error) {
+	svc := fluencyAPI.NewEventWatchService(c.ingextClient)
+	count, err := svc.DeleteRuleGroup(group)
+	if err != nil {
+		c.Logger.Error("failed to delete eventwatch rule group", "group", group, "error", err)
+		return 0, fmt.Errorf("failed to delete eventwatch rule group %q: %w", group, err)
+	}
+	return count, nil
+}

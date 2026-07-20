@@ -56,6 +56,7 @@ type GenericDaoRequest[T any] struct {
 * behavior_summary_search (kargs: options with SimpleSearchOption) — summary search
 * fsm_behavior_search (kargs: options with SimpleSearchOption) — timeline search
 * eventwatch_bucket_search (kargs: options with SimpleSearchOption) — rule search
+* eventwatch_bucket_delete_group (kargs: group) — delete all rules in a group
 
 == FPL report APIs: (with prefix 'api/ds')
 

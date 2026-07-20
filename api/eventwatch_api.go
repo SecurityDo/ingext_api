@@ -182,6 +182,28 @@ func (s *EventWatchService) DeleteRule(name string) error {
 	return s.call("eventwatch_bucket_dao", req, nil)
 }
 
+// EventWatchDeleteGroupRequest is the payload for the eventwatch_bucket_delete_group endpoint.
+type EventWatchDeleteGroupRequest struct {
+	Group string `json:"group"`
+}
+
+// EventWatchDeleteGroupResponse is the response returned by the
+// eventwatch_bucket_delete_group endpoint, reporting how many rules were removed.
+type EventWatchDeleteGroupResponse struct {
+	Count int `json:"count"`
+}
+
+// DeleteRuleGroup removes an entire eventwatch rule group via the
+// eventwatch_bucket_delete_group endpoint and returns the number of rules deleted.
+func (s *EventWatchService) DeleteRuleGroup(group string) (int, error) {
+	req := &EventWatchDeleteGroupRequest{Group: group}
+	var resp EventWatchDeleteGroupResponse
+	if err := s.call("eventwatch_bucket_delete_group", req, &resp); err != nil {
+		return 0, err
+	}
+	return resp.Count, nil
+}
+
 type ElasticSearchRequest struct {
 	Options *SimpleSearchOption `json:"options,omitempty"`
 }
