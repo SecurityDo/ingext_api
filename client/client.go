@@ -24,6 +24,9 @@ type HTTPService struct {
 	token       string
 	gridAccount string
 	logger      *slog.Logger
+	// Quiet suppresses error logging for calls whose failure is expected and
+	// handled by the caller (e.g. capability probes). The error is still returned.
+	Quiet bool
 }
 
 func NewHTTPService(url string, logger *slog.Logger) *HTTPService {
@@ -119,7 +122,9 @@ func (r *HTTPService) Call(prefix string, functionName string, input interface{}
 	//fmt.Println("response Body:", string(body))
 	if resp.StatusCode != 200 {
 		bodyStr := strings.TrimSpace(string(body))
-		r.logger.Error("HTTP ERROR from local http service %s: %s\n", r.url, resp.Status)
+		if !r.Quiet {
+			r.logger.Error("HTTP ERROR from local http service %s: %s\n", r.url, resp.Status)
+		}
 		if bodyStr != "" {
 			return result, fmt.Errorf("HTTP Error from Local HTTP service %s: %s: %s", r.url, resp.Status, bodyStr)
 		}
@@ -141,7 +146,9 @@ func (r *HTTPService) Call(prefix string, functionName string, input interface{}
 	}
 
 	if res.Verdict == "ERROR" {
-		r.logger.Error("RPC call return with ERROR", "prefix", prefix, "functionName", functionName, "Error", res.Error)
+		if !r.Quiet {
+			r.logger.Error("RPC call return with ERROR", "prefix", prefix, "functionName", functionName, "Error", res.Error)
+		}
 		return result, fmt.Errorf("RPC call return with ERROR: %s", res.Error)
 	} else if res.Verdict == "EXCEPTION" {
 		r.logger.Debug("RPC call return with EXCEPTION: ", "exception", res.Exception)
@@ -182,6 +189,19 @@ func (r *IngextClient) SetDebug(debug bool) {
 // gets "?gridaccount=<account>" appended.
 func (r *IngextClient) SetGridAccount(account string) {
 	r.serviceClient.SetGridAccount(account)
+}
+
+// GetUrl returns the site URL this client is connected to.
+func (r *IngextClient) GetUrl() string {
+	return r.serviceClient.GetUrl()
+}
+
+// GenericCallQuiet is GenericCall for probes: the error is returned to the caller
+// without being logged or printed, since the caller expects failure and reports it.
+func (r *IngextClient) GenericCallQuiet(prefix string, functionName string, x interface{}) (res *fsb.JNode, err error) {
+	r.serviceClient.Quiet = true
+	defer func() { r.serviceClient.Quiet = false }()
+	return r.serviceClient.Call(prefix, functionName, x)
 }
 
 func (r *IngextClient) GenericCall(prefix string, functionName string, x interface{}) (res *fsb.JNode, err error) {

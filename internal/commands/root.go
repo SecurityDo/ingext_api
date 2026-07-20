@@ -169,6 +169,12 @@ var RootCmd = &cobra.Command{
 
 		// 6. Target a tenant account via the provider proxy, if requested.
 		if acct := viper.GetString("gridaccount"); acct != "" {
+			// Verify the site can actually proxy before targeting the tenant.
+			// Plain ingext sites ignore "?gridaccount=" and would silently run the
+			// command against their own account instead.
+			if err := AppAPI.VerifyGridAccount(acct); err != nil {
+				return err
+			}
 			AppAPI.SetTenant(acct)
 			logger.Info("targeting tenant account via provider proxy", "gridaccount", acct)
 		}

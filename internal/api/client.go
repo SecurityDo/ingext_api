@@ -115,6 +115,14 @@ func (c *Client) SetDebug(debug bool) {
 	}
 }
 
+// SiteURL returns the site URL the client is connected to, or "" if uninitialized.
+func (c *Client) SiteURL() string {
+	if c.ingextClient == nil {
+		return ""
+	}
+	return c.ingextClient.GetUrl()
+}
+
 // SetTenant targets a tenant account through the provider proxy. When set, every
 // request has "?gridaccount=<tenant>" appended so the provider forwards it to the
 // tenant account. No-op if tenant is empty.
