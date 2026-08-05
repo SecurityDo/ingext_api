@@ -17,6 +17,10 @@ type CallResponse struct {
    Response    json.RawMessage        `json:"response"`
    Error       string        `json:"error,omitempty"`
 }
+* Any 'api/ds' function can be routed to a tenant through a grid manager by adding a "gridaccount" query parameter: https://$grid/api/ds/$function?gridaccount=$account
+** In the Go client this is client-wide, not per-call: IngextClient.SetGridAccount("$account").
+** Success payloads are identical whether the call went direct or through the grid.
+** Failures are not: a tenant "ERROR" verdict arrives as "EXCEPTION" through the grid. The message text is preserved.
 * For typical CRUD operations, the dao APIs (with a suffix "_dao") has the following format. 
 ** action values: get, add, delete, update, list, toggle
 [source, golang] 
@@ -67,6 +71,25 @@ type GenericDaoRequest[T any] struct {
 == resource APIs: (with prefix 'api/ds')
 
 * resource_search (kargs: resource, customer, options) — search resources by type
+
+== datalake APIs: (with prefix 'api/ds')
+
+* list_data_tables — list every queryable table; returns streamTables (datalake indexes; the name is the KQL table identifier, query with kql_search) and resourceTables (vendor entity tables, query with resource_search). Takes no kargs. The "default" and "AzureAudit" indexes are excluded.
+* ingext_datalake_dao (dao-style: action = list | add)
+* ingext_datalake_index_list (kargs: lake) / ingext_datalake_index_add (kargs: entry) / ingext_datalake_index_delete (kargs: lake, index)
+* ingext_datalake_schema_dao (dao-style: action = list | add | update | delete)
+
+== search APIs: (with prefix 'api/ds')
+
+* kql_search (kargs: kql, index, rangeFrom, rangeTo) — run a KQL query against the datalake
+* kql_validate (kargs: kql) — parse a KQL query without executing it
+
+== SentinelOne APIs: (with prefix 'api/ds')
+
+* investigate_sentinelone_alert (kargs: alertId, integrationName, options) — investigate one SentinelOne Unified Alert end to end: the alert, the threats correlated to it, the endpoint activity around the detection, and the affected endpoint's agent record
+** alertId is the alert's own id, not the threat id. integrationName is optional when exactly one SentinelOneEvents integration is configured (the type is "SentinelOneEvents", not "SentinelOne").
+** options: includeThreats (default true), includeActivities (default true), includeEndpoint (default true), includeRelatedAlerts (default false), activityWindowMinutes (half-width centered on the detection time, default 60), maxActivities (default 200). Omit a flag to keep its default; an explicit false is honored. Out-of-range integers are clamped, not rejected.
+** Only the alert lookup is fatal — a successful response can still report failed or partial sections in collectionStatus. Read associations.confidence before trusting the correlated threats.
 
 == syslog APIs: (with prefix 'api/ds')
 

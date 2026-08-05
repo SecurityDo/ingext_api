@@ -5,12 +5,13 @@ import (
 	"github.com/SecurityDo/ingext_api/model"
 )
 
-// PlatformService provides helpers for calling platform_* endpoints.
+// DatalakeService provides helpers for calling the datalake endpoints under
+// /api/ds — lakes, indexes, schemas, and the queryable-table catalog.
 type DatalakeService struct {
 	client *client.IngextClient
 }
 
-// NewPlatformService constructs a PlatformService instance backed by the provided client.
+// NewDatalakeService constructs a DatalakeService instance backed by the provided client.
 func NewDatalakeService(client *client.IngextClient) *DatalakeService {
 	return &DatalakeService{client: client}
 }
@@ -154,4 +155,19 @@ func (s *DatalakeService) AddSchema(name, description string, content string) (e
 	}
 	return nil
 
+}
+
+// ListDataTables calls /api/ds/list_data_tables and returns every table the
+// account can query, split into datalake stream tables (query them with
+// kql_search; Name is the KQL table identifier) and vendor resource tables
+// (query them with resource_search). The call takes no arguments.
+//
+// The platform excludes the "default" and "AzureAudit" datalake indexes, and
+// silently skips any index whose schema entry is missing.
+func (s *DatalakeService) ListDataTables() (*model.ListTableResponse, error) {
+	var resp model.ListTableResponse
+	if err := s.call("list_data_tables", nil, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
 }

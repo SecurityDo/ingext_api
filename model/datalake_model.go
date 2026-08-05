@@ -65,3 +65,29 @@ type DatalakeIndexDeleteRequest struct {
 	Lake  string `json:"lake"`
 	Index string `json:"index"`
 }
+
+// DataTable is one queryable table returned by list_data_tables: the table
+// identifier and a short description. Schemas and sample queries are
+// deliberately not returned — the catalog stays cheap to fetch.
+type DataTable struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+// ListTableResponse is the response of list_data_tables, split into the two
+// kinds of queryable table.
+//
+// StreamTables live in the datalake; Name is the KQL table identifier, so it
+// can be passed straight to kql_search, and Description comes from the schema
+// entry the index references. The platform excludes the "default" and
+// "AzureAudit" indexes.
+//
+// ResourceTables are entity tables synced from a vendor API; Name is the
+// resource argument to resource_search and Description is always empty.
+//
+// Both slices are omitempty on the wire, so an account with nothing to query
+// returns an empty object rather than empty arrays.
+type ListTableResponse struct {
+	StreamTables   []*DataTable `json:"streamTables,omitempty"`
+	ResourceTables []*DataTable `json:"resourceTables,omitempty"`
+}
