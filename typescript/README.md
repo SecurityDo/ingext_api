@@ -73,6 +73,14 @@ await ingext.eventwatch.updateRule(rule!);
 await ingext.eventwatch.toggleRule("my_rule");
 await ingext.eventwatch.deleteRule("my_rule");
 
+// behavior filters (behavior_filter_dao); keyed by (behaviorRule, name)
+const filters = await ingext.eventwatch.listBehaviorFilter();
+const filter  = await ingext.eventwatch.getBehaviorFilter("my_rule", "my_filter");
+await ingext.eventwatch.addBehaviorFilter(filter!);
+await ingext.eventwatch.updateBehaviorFilter(filter!);
+await ingext.eventwatch.toggleBehaviorFilter("my_rule", "my_filter");
+await ingext.eventwatch.deleteBehaviorFilter("my_rule", "my_filter");
+
 // fpl
 const taskID = await ingext.fpl.runReport({ reportName: "my-report" });
 const status = await ingext.fpl.getTaskByID(taskID);

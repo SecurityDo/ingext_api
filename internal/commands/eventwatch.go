@@ -18,6 +18,7 @@ var (
 	eventwatchName    string
 	eventwatchGroup   string
 	eventwatchContent string
+	eventwatchRule    string
 )
 
 var eventwatchCmd = &cobra.Command{
@@ -194,28 +195,169 @@ var eventwatchGroupDeleteCmd = &cobra.Command{
 	},
 }
 
-// loadEventwatchRule reads an EventWatchBucket JSON definition from the --content
-// flag, which accepts inline JSON, an "@path" file reference, or "-" for stdin.
-func loadEventwatchRule(cmd *cobra.Command) (*model.EventWatchBucket, error) {
-	var raw string
+// --- Behavior filter DAO commands (behavior_filter_dao) ---
+
+var eventwatchFilterListCmd = &cobra.Command{
+	Use:   "filter_list",
+	Short: "List behavior filters",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		entries, err := AppAPI.ListBehaviorFilter()
+		if err != nil {
+			return err
+		}
+		if len(entries) == 0 {
+			cmd.PrintErrln("No behavior filters found.")
+			return nil
+		}
+		for _, entry := range entries {
+			state := "enabled"
+			if entry.Disabled {
+				state = "disabled"
+			}
+			cmd.Printf("BehaviorRule: %s, Name: %s, Action: %s, State: %s\n",
+				entry.BehaviorRule, entry.Name, entry.Action, state)
+		}
+		return nil
+	},
+}
+
+var eventwatchFilterGetCmd = &cobra.Command{
+	Use:   "filter_get",
+	Short: "Get a single behavior filter by rule and name",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		entry, err := AppAPI.GetBehaviorFilter(eventwatchRule, eventwatchName)
+		if err != nil {
+			return err
+		}
+		if entry == nil {
+			cmd.PrintErrln("Behavior filter not found.")
+			return nil
+		}
+		b, err := json.MarshalIndent(entry, "", "  ")
+		if err != nil {
+			return err
+		}
+		cmd.Println(string(b))
+		return nil
+	},
+}
+
+var eventwatchFilterAddCmd = &cobra.Command{
+	Use:   "filter_add",
+	Short: "Add a behavior filter from a JSON definition",
+	// Example usage:
+	// 1. ingext eventwatch filter_add --content "@./filter.json"
+	// 2. cat filter.json | ingext eventwatch filter_add --content -
+	RunE: func(cmd *cobra.Command, args []string) error {
+		entry, err := loadBehaviorFilter(cmd)
+		if err != nil {
+			return err
+		}
+		if err := AppAPI.AddBehaviorFilter(entry); err != nil {
+			return err
+		}
+		cmd.PrintErrf("Behavior filter '%s/%s' added successfully\n", entry.BehaviorRule, entry.Name)
+		return nil
+	},
+}
+
+var eventwatchFilterUpdateCmd = &cobra.Command{
+	Use:   "filter_update",
+	Short: "Update a behavior filter from a JSON definition",
+	// Example usage:
+	// 1. ingext eventwatch filter_update --content "@./filter.json"
+	// 2. cat filter.json | ingext eventwatch filter_update --content -
+	RunE: func(cmd *cobra.Command, args []string) error {
+		entry, err := loadBehaviorFilter(cmd)
+		if err != nil {
+			return err
+		}
+		if err := AppAPI.UpdateBehaviorFilter(entry); err != nil {
+			return err
+		}
+		cmd.PrintErrf("Behavior filter '%s/%s' updated successfully\n", entry.BehaviorRule, entry.Name)
+		return nil
+	},
+}
+
+var eventwatchFilterToggleCmd = &cobra.Command{
+	Use:   "filter_toggle",
+	Short: "Toggle the disabled state of a behavior filter",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := AppAPI.ToggleBehaviorFilter(eventwatchRule, eventwatchName); err != nil {
+			return err
+		}
+		cmd.PrintErrf("Behavior filter '%s/%s' toggled successfully\n", eventwatchRule, eventwatchName)
+		return nil
+	},
+}
+
+var eventwatchFilterDeleteCmd = &cobra.Command{
+	Use:   "filter_delete",
+	Short: "Delete a behavior filter by rule and name",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := AppAPI.DeleteBehaviorFilter(eventwatchRule, eventwatchName); err != nil {
+			return err
+		}
+		cmd.PrintErrf("Behavior filter '%s/%s' deleted successfully\n", eventwatchRule, eventwatchName)
+		return nil
+	},
+}
+
+// loadBehaviorFilter reads a BehaviorEventFilterT JSON definition from the
+// --content flag, which accepts inline JSON, an "@path" file reference, or "-"
+// for stdin.
+func loadBehaviorFilter(cmd *cobra.Command) (*model.BehaviorEventFilterT, error) {
+	raw, err := readEventwatchContent(cmd)
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) == 0 {
+		return nil, fmt.Errorf("filter content is empty")
+	}
+
+	var entry model.BehaviorEventFilterT
+	if err := json.Unmarshal([]byte(raw), &entry); err != nil {
+		return nil, fmt.Errorf("failed to parse filter JSON: %w", err)
+	}
+	if entry.Name == "" {
+		return nil, fmt.Errorf("filter name field missing")
+	}
+	if entry.BehaviorRule == "" {
+		return nil, fmt.Errorf("filter behaviorRule field missing")
+	}
+	return &entry, nil
+}
+
+// readEventwatchContent resolves the --content flag, which accepts inline JSON,
+// an "@path" file reference, or "-" for stdin.
+func readEventwatchContent(cmd *cobra.Command) (string, error) {
 	switch {
 	case eventwatchContent == "-":
 		b, err := io.ReadAll(cmd.InOrStdin())
 		if err != nil {
-			return nil, fmt.Errorf("failed to read from stdin: %w", err)
+			return "", fmt.Errorf("failed to read from stdin: %w", err)
 		}
-		raw = string(b)
+		return string(b), nil
 	case len(eventwatchContent) > 1 && eventwatchContent[0] == '@':
 		filePath := eventwatchContent[1:]
 		b, err := os.ReadFile(filePath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read file '%s': %w", filePath, err)
+			return "", fmt.Errorf("failed to read file '%s': %w", filePath, err)
 		}
-		raw = string(b)
+		return string(b), nil
 	default:
-		raw = eventwatchContent
+		return eventwatchContent, nil
 	}
+}
 
+// loadEventwatchRule reads an EventWatchBucket JSON definition from the --content
+// flag, which accepts inline JSON, an "@path" file reference, or "-" for stdin.
+func loadEventwatchRule(cmd *cobra.Command) (*model.EventWatchBucket, error) {
+	raw, err := readEventwatchContent(cmd)
+	if err != nil {
+		return nil, err
+	}
 	if len(raw) == 0 {
 		return nil, fmt.Errorf("rule content is empty")
 	}
@@ -277,6 +419,14 @@ func init() {
 		eventwatchRuleDeleteCmd,
 		eventwatchGroupDeleteCmd,
 	)
+	eventwatchCmd.AddCommand(
+		eventwatchFilterListCmd,
+		eventwatchFilterGetCmd,
+		eventwatchFilterAddCmd,
+		eventwatchFilterUpdateCmd,
+		eventwatchFilterToggleCmd,
+		eventwatchFilterDeleteCmd,
+	)
 
 	eventwatchSummarySearchCmd.Flags().StringVar(&eventwatchQuery, "query", "", "Search query")
 	eventwatchSummarySearchCmd.Flags().Int64Var(&eventwatchFrom, "from", 0, "Range start (Unix ms); default: 1 hour ago")
@@ -304,4 +454,21 @@ func init() {
 
 	eventwatchGroupDeleteCmd.Flags().StringVar(&eventwatchGroup, "group", "", "Rule group name")
 	_ = eventwatchGroupDeleteCmd.MarkFlagRequired("group")
+
+	for _, c := range []*cobra.Command{
+		eventwatchFilterGetCmd,
+		eventwatchFilterToggleCmd,
+		eventwatchFilterDeleteCmd,
+	} {
+		c.Flags().StringVar(&eventwatchRule, "rule", "", "Behavior rule owning the filter ('*' for the all-rules filter)")
+		c.Flags().StringVar(&eventwatchName, "name", "", "Filter name")
+		_ = c.MarkFlagRequired("rule")
+		_ = c.MarkFlagRequired("name")
+	}
+
+	eventwatchFilterAddCmd.Flags().StringVar(&eventwatchContent, "content", "", "Filter JSON, '@path' file, or '-' for stdin")
+	_ = eventwatchFilterAddCmd.MarkFlagRequired("content")
+
+	eventwatchFilterUpdateCmd.Flags().StringVar(&eventwatchContent, "content", "", "Filter JSON, '@path' file, or '-' for stdin")
+	_ = eventwatchFilterUpdateCmd.MarkFlagRequired("content")
 }

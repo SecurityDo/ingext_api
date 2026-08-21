@@ -270,6 +270,80 @@ describe("EventWatchService", () => {
     await ingext.eventwatch.deleteRule("rule-a");
     expect(cap.body).toMatchObject({ kargs: { action: "delete", args: { id: "rule-a" } } });
   });
+
+  it("listBehaviorFilter calls behavior_filter_dao with action=list and no args", async () => {
+    const { ingext, cap } = makeIngext(() => ({
+      entries: [{ behaviorRule: "*", name: "scanner" }],
+    }));
+    const entries = await ingext.eventwatch.listBehaviorFilter();
+    expect(cap.url).toBe("https://x.example/api/ds/behavior_filter_dao");
+    expect(cap.body).toMatchObject({ kargs: { action: "list" } });
+    expect((cap.body as { kargs: { args?: unknown } }).kargs.args).toBeUndefined();
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.name).toBe("scanner");
+  });
+
+  it("getBehaviorFilter joins the rule and the name into the id", async () => {
+    const { ingext, cap } = makeIngext(() => ({ entry: { behaviorRule: "r1", name: "f1" } }));
+    const entry = await ingext.eventwatch.getBehaviorFilter("r1", "f1");
+    expect(cap.body).toMatchObject({ kargs: { action: "get", args: { id: "r1/f1" } } });
+    expect(entry?.name).toBe("f1");
+  });
+
+  it("rejects behavior filter keys the server cannot split", async () => {
+    const { ingext } = makeIngext(() => ({}));
+    await expect(ingext.eventwatch.getBehaviorFilter("", "f1")).rejects.toThrow(
+      /behaviorRule is required/,
+    );
+    await expect(ingext.eventwatch.getBehaviorFilter("r1", "")).rejects.toThrow(
+      /name is required/,
+    );
+    await expect(ingext.eventwatch.deleteBehaviorFilter("a/b", "f1")).rejects.toThrow(
+      /must not contain a slash/,
+    );
+  });
+
+  it("getBehaviorFilter returns null when the entry is absent", async () => {
+    const { ingext } = makeIngext(() => ({}));
+    const entry = await ingext.eventwatch.getBehaviorFilter("r1", "missing");
+    expect(entry).toBeNull();
+  });
+
+  it("addBehaviorFilter identifies the filter through the entry alone", async () => {
+    const { ingext, cap } = makeIngext(() => ({}));
+    await ingext.eventwatch.addBehaviorFilter({
+      behaviorRule: "r1",
+      name: "f1",
+      action: "discard",
+    } as never);
+    expect(cap.body).toMatchObject({
+      kargs: { action: "add", args: { entry: { behaviorRule: "r1", name: "f1" } } },
+    });
+    const args = (cap.body as { kargs: { args: Record<string, unknown> } }).kargs.args;
+    expect(args.id).toBeUndefined();
+  });
+
+  it("updateBehaviorFilter sends action=update with the entry", async () => {
+    const { ingext, cap } = makeIngext(() => ({}));
+    await ingext.eventwatch.updateBehaviorFilter({ behaviorRule: "r1", name: "f1" } as never);
+    expect(cap.body).toMatchObject({
+      kargs: { action: "update", args: { entry: { behaviorRule: "r1", name: "f1" } } },
+    });
+  });
+
+  it("toggleBehaviorFilter and deleteBehaviorFilter key on the composite id", async () => {
+    const toggle = makeIngext(() => ({}));
+    await toggle.ingext.eventwatch.toggleBehaviorFilter("*", "scanner");
+    expect(toggle.cap.body).toMatchObject({
+      kargs: { action: "toggle", args: { id: "*/scanner" } },
+    });
+
+    const del = makeIngext(() => ({}));
+    await del.ingext.eventwatch.deleteBehaviorFilter("*", "scanner");
+    expect(del.cap.body).toMatchObject({
+      kargs: { action: "delete", args: { id: "*/scanner" } },
+    });
+  });
 });
 
 describe("ResourceService", () => {

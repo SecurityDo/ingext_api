@@ -315,6 +315,23 @@ ingext eventwatch search_timeline --query "keyword"
 ingext eventwatch search_rule --query "keyword"
 ```
 
+Behavior filters (`behavior_filter_dao`) are keyed by the owning behavior rule
+plus the filter name — the two are joined into a single `$rule/$name` id on the
+wire — so `--rule` and `--name` are both required. A rule of `*` is the filter
+that applies to every behavior rule.
+
+```bash
+ingext eventwatch filter_list
+ingext eventwatch filter_get --rule "AWS Root Login" --name break-glass
+
+# Add/update take the full filter JSON: inline, '@path', or '-' for stdin
+ingext eventwatch filter_add --content @./filter.json
+cat filter.json | ingext eventwatch filter_update --content -
+
+ingext eventwatch filter_toggle --rule "AWS Root Login" --name break-glass
+ingext eventwatch filter_delete --rule "AWS Root Login" --name break-glass
+```
+
 ### FPL (`fpl`)
 
 Run FPL v2 reports and retrieve task results.

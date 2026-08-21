@@ -61,6 +61,15 @@ type GenericDaoRequest[T any] struct {
 * fsm_behavior_search (kargs: options with SimpleSearchOption) — timeline search
 * eventwatch_bucket_search (kargs: options with SimpleSearchOption) — rule search
 * eventwatch_bucket_delete_group (kargs: group) — delete all rules in a group
+* eventwatch_bucket_dao (dao-style: action = list | get | add | update | delete | toggle) — EventWatchBucket CRUD, keyed by rule name
+* behavior_filter_dao (dao-style: action = list | get | add | update | delete | toggle) — BehaviorEventFilterT CRUD
+** A behavior filter is keyed by (behaviorRule, name), not by name alone: together they form the etcd key acc_$account/fsm/filters/$behaviorRule/$name. The pair travels in the single "id" arg joined by a slash — "$behaviorRule/$name".
+** The server splits id on the *first* slash, so a filter name may contain slashes but a behavior rule may not. An id with no slash at all is rejected as "invalid filter name".
+** get / delete / toggle take id. add / update take entry, which carries its own name and behaviorRule, and ignore id; list takes no args and returns every filter of the account.
+** A behaviorRule of "*" applies the filter to every behavior rule.
+** get reports a missing filter as an error ("behavior filter not found"), not as an empty entry.
+** add and update both require a non-empty filters list — a filter with no entries is rejected even when matchAll is set. Regex values must compile, or the entry is rejected as invalid.
+** update matches on the entry's (behaviorRule, name); changing either field does not rename the filter, it fails as "behavior filter does not exist".
 
 == FPL report APIs: (with prefix 'api/ds')
 

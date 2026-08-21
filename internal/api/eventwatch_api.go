@@ -113,3 +113,67 @@ func (c *Client) DeleteRuleGroup(group string) (int, error) {
 	}
 	return count, nil
 }
+
+// ListBehaviorFilter lists every behavior filter of the account via the
+// behavior_filter_dao API.
+func (c *Client) ListBehaviorFilter() ([]*model.BehaviorEventFilterT, error) {
+	svc := fluencyAPI.NewEventWatchService(c.ingextClient)
+	entries, err := svc.ListBehaviorFilter()
+	if err != nil {
+		c.Logger.Error("failed to list behavior filters", "error", err)
+		return nil, fmt.Errorf("failed to list behavior filters: %w", err)
+	}
+	return entries, nil
+}
+
+// GetBehaviorFilter fetches a single behavior filter via the behavior_filter_dao API.
+func (c *Client) GetBehaviorFilter(behaviorRule, name string) (*model.BehaviorEventFilterT, error) {
+	svc := fluencyAPI.NewEventWatchService(c.ingextClient)
+	entry, err := svc.GetBehaviorFilter(behaviorRule, name)
+	if err != nil {
+		c.Logger.Error("failed to get behavior filter", "behaviorRule", behaviorRule, "name", name, "error", err)
+		return nil, fmt.Errorf("failed to get behavior filter %q/%q: %w", behaviorRule, name, err)
+	}
+	return entry, nil
+}
+
+// AddBehaviorFilter creates a new behavior filter via the behavior_filter_dao API.
+func (c *Client) AddBehaviorFilter(entry *model.BehaviorEventFilterT) error {
+	svc := fluencyAPI.NewEventWatchService(c.ingextClient)
+	if err := svc.AddBehaviorFilter(entry); err != nil {
+		c.Logger.Error("failed to add behavior filter", "error", err)
+		return fmt.Errorf("failed to add behavior filter: %w", err)
+	}
+	return nil
+}
+
+// UpdateBehaviorFilter updates an existing behavior filter via the behavior_filter_dao API.
+func (c *Client) UpdateBehaviorFilter(entry *model.BehaviorEventFilterT) error {
+	svc := fluencyAPI.NewEventWatchService(c.ingextClient)
+	if err := svc.UpdateBehaviorFilter(entry); err != nil {
+		c.Logger.Error("failed to update behavior filter", "error", err)
+		return fmt.Errorf("failed to update behavior filter: %w", err)
+	}
+	return nil
+}
+
+// ToggleBehaviorFilter flips the disabled state of a behavior filter via the
+// behavior_filter_dao API.
+func (c *Client) ToggleBehaviorFilter(behaviorRule, name string) error {
+	svc := fluencyAPI.NewEventWatchService(c.ingextClient)
+	if err := svc.ToggleBehaviorFilter(behaviorRule, name); err != nil {
+		c.Logger.Error("failed to toggle behavior filter", "behaviorRule", behaviorRule, "name", name, "error", err)
+		return fmt.Errorf("failed to toggle behavior filter %q/%q: %w", behaviorRule, name, err)
+	}
+	return nil
+}
+
+// DeleteBehaviorFilter removes a behavior filter via the behavior_filter_dao API.
+func (c *Client) DeleteBehaviorFilter(behaviorRule, name string) error {
+	svc := fluencyAPI.NewEventWatchService(c.ingextClient)
+	if err := svc.DeleteBehaviorFilter(behaviorRule, name); err != nil {
+		c.Logger.Error("failed to delete behavior filter", "behaviorRule", behaviorRule, "name", name, "error", err)
+		return fmt.Errorf("failed to delete behavior filter %q/%q: %w", behaviorRule, name, err)
+	}
+	return nil
+}

@@ -399,3 +399,69 @@ type SignalAggregationRule struct {
 	Match   *ValueMatch        `json:"match"`
 	Key     string             `json:"key"` // groupBy field, optional
 }
+
+// Match types for BehaviorEventFilterEntryT.MatchType. Every type except
+// MatchTypeRange compares against the entry's Values list; MatchTypeRange uses
+// NumberMatch instead and ignores Values.
+const (
+	MatchTypeString  = "string_match" // case-insensitive equality
+	MatchTypePrefix  = "prefix"       // case-insensitive prefix
+	MatchTypeSuffix  = "suffix"       // case-insensitive suffix
+	MatchTypeRegex   = "regex"        // Go RE2 regex; rejected at add/update time if it does not compile
+	MatchTypeRange   = "range"        // numeric comparison driven by NumberMatch
+	MatchTypeContain = "contain"      // case-insensitive substring
+	MatchTypeEntity  = "entityinfo"   // membership in the named entityinfo table
+)
+
+// Actions for BehaviorEventFilterT.Action, applied to a behavior event that the
+// filter matches.
+const (
+	FilterActionDiscard     = "discard"      // drop the event entirely
+	FilterActionSkipSummary = "skip_summary" // keep the event, exclude it from the behavior summary
+	FilterActionPass        = "pass"         // keep the event; use with RiskMask/RiskAppend to adjust risks only
+)
+
+// BehaviorEventFilterEntryT is one match condition inside a behavior filter. All
+// entries of a filter must match for the filter to fire, unless the filter sets
+// MatchAll.
+type BehaviorEventFilterEntryT struct {
+	// Field is the behavior event field to test: "key", "keyType",
+	// "behavior.name", "behavior.group", or a behavior attribute name.
+	Field  string   `json:"field"`
+	Values []string `json:"values"`
+	// NumberMatch is required when MatchType is MatchTypeRange and ignored otherwise.
+	NumberMatch *ValueMatch `json:"numberMatch,omitempty"`
+	MatchType   string      `json:"matchType,omitempty"`
+	// IsAttribute is derived server-side from Field on add/update; callers do not set it.
+	IsAttribute bool `json:"isAttribute"`
+	// Exclude negates this entry's result.
+	Exclude bool `json:"exclude"`
+}
+
+// BehaviorEventFilterT is a behavior event filter, stored per behavior rule.
+// BehaviorRule plus Name is the identity: together they form the etcd key
+// acc_$account/fsm/filters/$behaviorRule/$name, so Name only has to be unique
+// inside a rule. A BehaviorRule of "*" applies the filter to every behavior rule.
+type BehaviorEventFilterT struct {
+	ID         int64  `json:"id"`
+	Repository string `json:"repository,omitempty"`
+	Group      string `json:"group"`
+
+	BehaviorRule string                       `json:"behaviorRule"`
+	Name         string                       `json:"name"`
+	Disabled     bool                         `json:"disabled"`
+	Description  string                       `json:"description"`
+	Filters      []*BehaviorEventFilterEntryT `json:"filters"`
+	Action       string                       `json:"action"`
+	RiskMask     []string                     `json:"riskMask"`
+	RiskAppend   []string                     `json:"riskAppend"`
+	Attributes   []string                     `json:"attributes"`
+	// MatchAll makes the filter fire on every event of the rule, ignoring Filters.
+	// Filters must still be non-empty: the server rejects a filter with no entries.
+	MatchAll  bool `json:"matchAll"`
+	Whitelist bool `json:"whitelist"`
+
+	CreatedOn time.Time `json:"createdOn"`
+	UpdatedOn time.Time `json:"updatedOn"`
+	LastHit   time.Time `json:"lastHit"`
+}

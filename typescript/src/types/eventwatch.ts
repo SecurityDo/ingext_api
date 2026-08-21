@@ -312,3 +312,81 @@ export interface SignalAggregationRule {
   match: ValueMatch;
   key: string;
 }
+
+/**
+ * Match types for `BehaviorEventFilterEntryT.matchType`. Every type except
+ * MATCH_TYPE_RANGE compares against the entry's `values` list; MATCH_TYPE_RANGE
+ * uses `numberMatch` instead and ignores `values`.
+ */
+/** Case-insensitive equality. */
+export const MATCH_TYPE_STRING = "string_match";
+/** Case-insensitive prefix. */
+export const MATCH_TYPE_PREFIX = "prefix";
+/** Case-insensitive suffix. */
+export const MATCH_TYPE_SUFFIX = "suffix";
+/** Go RE2 regex; rejected at add/update time if it does not compile. */
+export const MATCH_TYPE_REGEX = "regex";
+/** Numeric comparison driven by `numberMatch`. */
+export const MATCH_TYPE_RANGE = "range";
+/** Case-insensitive substring. */
+export const MATCH_TYPE_CONTAIN = "contain";
+/** Membership in the named entityinfo table. */
+export const MATCH_TYPE_ENTITY = "entityinfo";
+
+/** Actions for `BehaviorEventFilterT.action`, applied to a matched behavior event. */
+/** Drop the event entirely. */
+export const FILTER_ACTION_DISCARD = "discard";
+/** Keep the event, exclude it from the behavior summary. */
+export const FILTER_ACTION_SKIP_SUMMARY = "skip_summary";
+/** Keep the event; use with riskMask/riskAppend to adjust risks only. */
+export const FILTER_ACTION_PASS = "pass";
+
+/**
+ * One match condition inside a behavior filter. All entries of a filter must
+ * match for the filter to fire, unless the filter sets `matchAll`.
+ */
+export interface BehaviorEventFilterEntryT {
+  /**
+   * The behavior event field to test: "key", "keyType", "behavior.name",
+   * "behavior.group", or a behavior attribute name.
+   */
+  field: string;
+  values: string[];
+  /** Required when `matchType` is MATCH_TYPE_RANGE, ignored otherwise. */
+  numberMatch?: ValueMatch;
+  matchType?: string;
+  /** Derived server-side from `field` on add/update; callers do not set it. */
+  isAttribute: boolean;
+  /** Negates this entry's result. */
+  exclude: boolean;
+}
+
+/**
+ * A behavior event filter, stored per behavior rule. `behaviorRule` plus `name`
+ * is the identity: together they form the etcd key
+ * `acc_$account/fsm/filters/$behaviorRule/$name`, so `name` only has to be unique
+ * inside a rule. A `behaviorRule` of "*" applies the filter to every behavior rule.
+ */
+export interface BehaviorEventFilterT {
+  id: number;
+  repository?: string;
+  group: string;
+  behaviorRule: string;
+  name: string;
+  disabled: boolean;
+  description: string;
+  filters: BehaviorEventFilterEntryT[];
+  action: string;
+  riskMask: string[];
+  riskAppend: string[];
+  attributes: string[];
+  /**
+   * Makes the filter fire on every event of the rule, ignoring `filters`.
+   * `filters` must still be non-empty: the server rejects a filter with no entries.
+   */
+  matchAll: boolean;
+  whitelist: boolean;
+  createdOn: string;
+  updatedOn: string;
+  lastHit: string;
+}
