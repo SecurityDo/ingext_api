@@ -353,6 +353,11 @@ Search resources by type and customer.
 
 ```bash
 ingext resource --resource-type office365User --customer _all_
+
+# Purge every resource dump of one customer, across all resource types.
+# The customer is matched literally ("_all_" is a name, not a wildcard), and
+# there is no undo. An unknown customer deletes nothing and is not an error.
+ingext resource dump_delete --customer office365
 ```
 
 ### EKS Pod Identity Roles (`eks`)

@@ -98,6 +98,7 @@ const collectors = await ingext.collector.collectorList();
 
 // resource
 const office = await ingext.resource.search("office365User", "_all_");
+const purged = await ingext.resource.dumpDelete("office365"); // dump folders removed
 
 // notification
 const epID = await ingext.notification.addEmail("ops", "alert", ["a@x"], []);

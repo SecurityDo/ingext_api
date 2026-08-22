@@ -355,6 +355,30 @@ describe("ResourceService", () => {
       kargs: { resource: "office365User", customer: "_all_" },
     });
   });
+
+  it("dumpDelete posts the customer and returns the purged count", async () => {
+    const { ingext, cap } = makeIngext(() => ({ deleted: 3 }));
+    const deleted = await ingext.resource.dumpDelete("office365");
+    expect(cap.url).toBe("https://x.example/api/ds/ingext_resource_dump_delete");
+    expect(cap.body).toMatchObject({
+      function: "ingext_resource_dump_delete",
+      kargs: { customer: "office365" },
+    });
+    expect(deleted).toBe(3);
+  });
+
+  it("dumpDelete reports an unknown customer as 0, not an error", async () => {
+    const { ingext } = makeIngext(() => ({ deleted: 0 }));
+    await expect(ingext.resource.dumpDelete("never-collected")).resolves.toBe(0);
+  });
+
+  it("dumpDelete rejects an empty customer without a request", async () => {
+    const { ingext, cap } = makeIngext(() => {
+      throw new Error("should not be called");
+    });
+    await expect(ingext.resource.dumpDelete("")).rejects.toThrow(/customer is required/);
+    expect(cap.url).toBe("");
+  });
 });
 
 describe("ApplicationService", () => {

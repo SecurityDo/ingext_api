@@ -80,6 +80,11 @@ type GenericDaoRequest[T any] struct {
 == resource APIs: (with prefix 'api/ds')
 
 * resource_search (kargs: resource, customer, options) — search resources by type
+* ingext_resource_dump_delete (kargs: customer) — purge every resource dump of one customer, across all resource types, and return {deleted} — the number of (resourceType, customer) dump folders removed
+** This is the same cleanup that deleting the owning plugin data source performs; the endpoint exists for the dumps of data sources removed while that purge silently matched nothing.
+** The customer is matched literally — "_all_" is a customer name here, not a wildcard. For a plugin data source the customer segment is the plugin name the dump was written under.
+** An unknown customer is not an error: it deletes nothing and returns 0, which is the only way to tell a purge from a no-op.
+** Requires data/manage, not data/write — it destroys collected data with no undo. A partial failure returns ERROR with no count even though some dumps were removed; re-running it is safe.
 
 == datalake APIs: (with prefix 'api/ds')
 
