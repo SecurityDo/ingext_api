@@ -29,11 +29,12 @@ type BehaviorSummary struct {
 	// KeyContext *recommend.EntityContext `json:"keyContext" bson:"keyContext"`
 
 	// incident management
-	Comments    []*UserComment `json:"comments" bson:"comments"`
-	Status      string         `json:"status,omitempty" bson:"status,omitempty"`
-	Incident    bool           `json:"incident" bson:"incident"`
-	ScoreAdjust int            `json:"scoreAdjust"`
-	UpdatedOn   int64          `json:"updatedOn" bson:"updatedOn"`
+	Comments              []*UserComment `json:"comments" bson:"comments"`
+	Status                string         `json:"status,omitempty" bson:"status,omitempty"`
+	Incident              bool           `json:"incident" bson:"incident"`
+	IncidentDetectionTime time.Time      `json:"incidentDetectionTime,omitempty" bson:"incidentDetectionTime,omitempty"`
+	ScoreAdjust           int            `json:"scoreAdjust"`
+	UpdatedOn             int64          `json:"updatedOn" bson:"updatedOn"`
 
 	NotifyFlag bool `json:"-"`
 
