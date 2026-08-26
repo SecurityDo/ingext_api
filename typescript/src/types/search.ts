@@ -62,7 +62,47 @@ export interface LegacySearchHit {
 }
 
 export interface SearchAggregate {
+  /**
+   * Raw bucket objects. The two shapes are not interchangeable: a term facet
+   * keys on a string, the `dateHistogram` aggregation keys on an epoch
+   * millisecond. Narrow with `FacetBucket` / `HistogramBucket`.
+   */
   buckets: unknown[];
+}
+
+/**
+ * Aggregation name the platform reserves for the date histogram over the search
+ * range. Every other key of `LakeSearchResponse.aggregations` is a term facet,
+ * named after the facet field.
+ */
+export const DATE_HISTOGRAM_AGGREGATION = "dateHistogram";
+
+/** One term of a facet aggregation. */
+export interface FacetBucket {
+  key: string;
+  doc_count: number;
+}
+
+/**
+ * One slot of the date histogram. `key` is the epoch millisecond the slot
+ * starts at; the platform returns a fixed number of slots spanning the search
+ * range, empty ones included.
+ */
+export interface HistogramBucket {
+  key: number;
+  doc_count: number;
+  subAggs?: { name: string; value: number }[];
+}
+
+/**
+ * kargs payload for the lake_search endpoint.
+ *
+ * The endpoint also declares `dataType`, `partition` and `dayIndex`, but never
+ * reads them, so they are left off the wire.
+ */
+export interface LakeSearchRequest {
+  index?: string;
+  options: LakeFacetSearchOption;
 }
 
 /** KQL search request payload for the kql_search endpoint. */

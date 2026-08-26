@@ -5,6 +5,7 @@ import (
 
 	ingextAPI "github.com/SecurityDo/ingext_api/api"
 	kqlModel "github.com/SecurityDo/ingext_api/kql/model"
+	"github.com/SecurityDo/ingext_api/model"
 )
 
 func (c *Client) KQLSearch(kql string) (resp *kqlModel.KQLSearchResponse, err error) {
@@ -27,6 +28,18 @@ func (c *Client) KQLValidate(kql string) (*ingextAPI.KQLValidateResponse, error)
 	if err != nil {
 		c.Logger.Error("kql validate error", "error", err)
 		return nil, fmt.Errorf("kql validate error: %w", err)
+	}
+	return resp, nil
+}
+
+// LakeSearch runs a facet search against one datalake index: a Lucene query and
+// a time range, narrowed by term filters, with a count per facet field.
+func (c *Client) LakeSearch(opts *ingextAPI.LakeSearchOptions) (*model.LakeSearchResponse, error) {
+	service := ingextAPI.NewSearchService(c.ingextClient)
+	resp, err := service.LakeSearch(opts)
+	if err != nil {
+		c.Logger.Error("lake search error", "error", err)
+		return nil, fmt.Errorf("lake search error: %w", err)
 	}
 	return resp, nil
 }

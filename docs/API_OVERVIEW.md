@@ -97,6 +97,14 @@ type GenericDaoRequest[T any] struct {
 
 * kql_search (kargs: kql, index, rangeFrom, rangeTo) — run a KQL query against the datalake
 * kql_validate (kargs: kql) — parse a KQL query without executing it
+* lake_search (kargs: index, options) — Elastic-style facet search over one datalake index: a Lucene query over a time range, must / must-not term filters, and a term count per facet field
+** index is the "<datalake>-<index>" name, e.g. "managed-Office365" for the "Office365" stream table of list_data_tables. An empty index searches "default". The endpoint also declares dataType, partition and dayIndex but never reads them.
+** options: searchStr (lucene, empty matches everything), range_from / range_to (epoch ms), fetchLimit / fetchOffset, sortField / sortOrder, facets{facets, mustFilters, mustNotFilters, dateFacets}
+** options.facets and its four arrays must always be sent: the endpoint walks them without a nil check. The filters live inside facets — the mustFilters at the top of options are not read. Terms of one filter are OR'ed, separate filters are AND'ed.
+** Two fields have no server-side default and fail unhelpfully when omitted: sortField (an empty one fails the query parser — use "@timestamp") and a facet's size (0 returns no buckets at all rather than all of them — use e.g. 20). The facet title is ignored: the response keys aggregations by field.
+** fetchOffset+fetchLimit may not exceed 5000. There is no facet-only search: fetchLimit 0 does not mean "counts without hits", it panics the search node ("index out of range [0] with length 0") because the top-hits heap is built with capacity 0 and then indexed.
+** The response is a LakeSearchResponse: hits, aggregations, total (matched), filtered (read and discarded), took, cost. aggregations is keyed by facet field, and is not guaranteed to hold exactly the requested set — a console response for this endpoint carried facets no one asked for — plus the date histogram, a fixed set of slots spanning the range, empty ones included. Facet buckets key on a string, histogram buckets on an epoch-millisecond number.
+** The histogram aggregation is keyed by the name of the first entry in options.facets.dateFacets, so send [{"name":"dateHistogram"}] to get the key the console uses — with no date facet the histogram comes back under the empty string "".
 
 == SentinelOne APIs: (with prefix 'api/ds')
 

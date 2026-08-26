@@ -81,6 +81,88 @@ describe("SearchService", () => {
       kargs: { kql: "MyTable | take 10" },
     });
   });
+
+  it("lakeSearch posts lake_search with the console's kargs shape", async () => {
+    const { ingext, cap } = makeIngext(() => ({ took: 12, total: 4, filtered: 172 }));
+    const resp = await ingext.search.lakeSearch({
+      index: "managed-Office365",
+      query: "71.178.173.2",
+      rangeFrom: 1787766069700,
+      rangeTo: 1787769669701,
+      facets: [{ title: "Username", field: "@fields.UserId" }, { field: "@fields.ClientIP", size: 5 }],
+      mustFilters: [{ field: "@source", terms: ["Audit.AzureActiveDirectory"] }],
+      fetchLimit: 1000,
+    });
+    expect(cap.url).toBe("https://x.example/api/ds/lake_search");
+    expect(cap.body).toMatchObject({
+      function: "lake_search",
+      kargs: {
+        index: "managed-Office365",
+        options: {
+          searchStr: "71.178.173.2",
+          range_from: 1787766069700,
+          range_to: 1787769669701,
+          fetchLimit: 1000,
+          fetchOffset: 0,
+          // No server-side default: an empty sort field fails the query parser.
+          sortField: "@timestamp",
+          sortOrder: "desc",
+          facets: {
+            // The platform keys the histogram by the date facet's name.
+            dateFacets: [{ name: "dateHistogram" }],
+            // A facet of size 0 comes back with no buckets at all.
+            facets: [
+              { title: "Username", field: "@fields.UserId", size: 20 },
+              { title: "@fields.ClientIP", field: "@fields.ClientIP", size: 5 },
+            ],
+            mustFilters: [{ field: "@source", terms: ["Audit.AzureActiveDirectory"] }],
+            mustNotFilters: [],
+          },
+        },
+      },
+    });
+    // dataType, partition and dayIndex are declared by the endpoint but never
+    // read, so they stay off the wire.
+    expect(Object.keys((cap.body as { kargs: object }).kargs).sort()).toEqual(["index", "options"]);
+    expect(resp.filtered).toBe(172);
+  });
+
+  it("lakeSearch always sends the facets object: the endpoint walks it without a nil check", async () => {
+    const { ingext, cap } = makeIngext(() => ({}));
+    await ingext.search.lakeSearch({ index: "managed-Office365", rangeFrom: 1, rangeTo: 2 });
+    const options = (cap.body as { kargs: { options: { facets: unknown; fetchLimit: number } } })
+      .kargs.options;
+    expect(options.facets).toEqual({
+      dateFacets: [{ name: "dateHistogram" }],
+      facets: [],
+      mustFilters: [],
+      mustNotFilters: [],
+    });
+    // A fetchLimit of 0 reaches the platform and panics its search node.
+    expect(options.fetchLimit).toBe(100);
+  });
+
+  it("lakeSearch rejects the requests that fail unhelpfully server-side", async () => {
+    const { ingext } = makeIngext(() => ({}));
+    await expect(ingext.search.lakeSearch({ rangeFrom: 0, rangeTo: 0 })).rejects.toThrow(
+      /epoch milliseconds/,
+    );
+    await expect(ingext.search.lakeSearch({ rangeFrom: 200, rangeTo: 100 })).rejects.toThrow(
+      /range is empty/,
+    );
+    await expect(
+      ingext.search.lakeSearch({ rangeFrom: 1, rangeTo: 2, fetchOffset: 4000, fetchLimit: 1001 }),
+    ).rejects.toThrow(/pagination limit is 5000/);
+    await expect(
+      ingext.search.lakeSearch({ rangeFrom: 1, rangeTo: 2, fetchOffset: 4950 }),
+    ).rejects.toThrow(/pagination limit is 5000/);
+    await expect(
+      ingext.search.lakeSearch({ rangeFrom: 1, rangeTo: 2, facets: [{ title: "Username" }] }),
+    ).rejects.toThrow(/facet 0: field is required/);
+    await expect(
+      ingext.search.lakeSearch({ rangeFrom: 1, rangeTo: 2, mustFilters: [{ field: "@source", terms: [] }] }),
+    ).rejects.toThrow(/at least one term/);
+  });
 });
 
 describe("SyslogService", () => {

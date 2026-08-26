@@ -253,6 +253,47 @@ ingext datalake list-schema
 ingext datalake delete-schema --name my-schema
 ```
 
+#### Facet search (`datalake search`)
+
+Run a facet search over one datalake index: a Lucene query across a time range,
+narrowed by must / must-not term filters, with a term count per facet field.
+This is the search behind the console's event explorer.
+
+```bash
+# Events matching a query in the last hour, with two facets counted
+ingext datalake search --index Office365 --query "71.178.173.2" \
+    --facet "Username=@fields.UserId" --facet @fields.ClientIP
+
+# Narrow by exact terms; terms of one filter are OR'ed, filters are AND'ed
+ingext datalake search --index Office365 \
+    --must '@source=Audit.AzureActiveDirectory' --must-not '@fields.UserType=1'
+
+# Explicit range, saving the full response
+ingext datalake search --index Office365 --facet @fields.Operation \
+    --from 1787766069700 --to 1787769669701 --output result.json
+```
+
+`--index` takes the name from `ingext datalake list-index` and is prefixed with
+`<--datalake>-` unless it already contains a dash, so `--index Office365`
+searches `managed-Office365`. Read the facets in the response by name: the
+platform does not guarantee it returns exactly the set that was requested.
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--datalake` | `managed` | Datalake the index belongs to. |
+| `--index` | _required_ | Datalake index to search. |
+| `--query`, `-q` | _none_ | Lucene query string; empty matches everything in range. |
+| `--from` / `--to` | last hour | Range bounds, epoch milliseconds. |
+| `--facet` | _none_ | Field to count terms on, as `field` or `Title=field`. Repeatable. |
+| `--facet-size` | `20` | Terms returned per facet. |
+| `--must` / `--must-not` | _none_ | Term filter, as `field=term[,term...]`. Repeatable. |
+| `--limit` | `10` | Hits to return. Minimum 1 — the platform has no facet-only search. |
+| `--offset` | `0` | Hits to skip. `offset+limit` cannot exceed 5000. |
+| `--sort-field` / `--sort-order` | `@timestamp` / `desc` | Hit ordering. |
+| `--histogram` | `false` | Also print the non-empty date histogram slots. |
+| `--json` | `false` | Emit the full response as JSON on stdout. |
+| `--output` | _none_ | Save the full JSON response to a file. |
+
 ### Syslog (`syslog`)
 
 Manage syslog ingestion configuration. Supported port types: `tcp`, `udp`, `tls`, `tls-rfc6587`.

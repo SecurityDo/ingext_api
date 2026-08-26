@@ -22,7 +22,12 @@ export { NotificationService } from "./services/notification.js";
 export { PlatformService } from "./services/platform.js";
 export { RepoService } from "./services/repo.js";
 export { ResourceService } from "./services/resource.js";
-export { SearchService } from "./services/search.js";
+export {
+  SearchService,
+  buildLakeSearchRequest,
+  LAKE_SEARCH_MAX_PAGINATION,
+  type LakeSearchOptions,
+} from "./services/search.js";
 export { SyslogService, type SyslogPort } from "./services/syslog.js";
 
 // Service-level request / response types

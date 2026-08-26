@@ -59,6 +59,21 @@ await ingext.datalake.addSchema("my-schema", "...", JSON.stringify(schema));
 const r = await ingext.search.kqlSearch("MyTable | take 10");
 const v = await ingext.search.kqlValidate("MyTable | where x == 1");
 
+// facet search over one datalake index (lake_search). rangeFrom/rangeTo are
+// required; fetchLimit defaults to 100 (the platform has no facet-only search).
+const facets = await ingext.search.lakeSearch({
+  index: "managed-Office365",             // "<datalake>-<index>"
+  query: "71.178.173.2",                  // lucene, empty matches everything
+  rangeFrom: Date.now() - 3_600_000,
+  rangeTo: Date.now(),
+  facets: [{ title: "Username", field: "@fields.UserId" }],
+  mustFilters: [{ field: "@source", terms: ["Audit.AzureActiveDirectory"] }],
+  fetchLimit: 100,
+});
+// facets.aggregations is keyed by field, and can carry facets the index adds on
+// its own, plus "dateHistogram" (DATE_HISTOGRAM_AGGREGATION) whose buckets key
+// on an epoch millisecond instead of a string.
+
 // eventwatch
 const now = Date.now();
 const summary  = await ingext.eventwatch.summarySearch("",  now - 3_600_000, now);

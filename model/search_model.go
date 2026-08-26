@@ -1,6 +1,9 @@
 package model
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type LakeFacetSearchOption struct {
 	SearchStr string `json:"searchStr,omitempty"`
@@ -91,6 +94,70 @@ type SearchAggregate struct {
 	name        string
 	//
 	//Buckets     []map[string]interface{} `json:"buckets"`
-	// either FacetBucketResult or HistogramBucketResult
-	Buckets []interface{} `json:"buckets"`
+	// Buckets are kept as raw JSON because the two bucket shapes are not
+	// interchangeable: a term facet keys on a string, the date histogram keys on
+	// an epoch-millisecond int64. Decoding into interface{} would turn that
+	// timestamp into a float64 and lose its exact value. Use FacetBuckets or
+	// HistogramBuckets to read them.
+	Buckets []json.RawMessage `json:"buckets"`
+}
+
+// DateHistogramAggregation is the aggregation name the platform reserves for the
+// date histogram over the search range. Every other key in
+// LakeSearchResponse.Aggregations is a term facet, named after the facet field.
+const DateHistogramAggregation = "dateHistogram"
+
+// FacetBucket is one term of a facet aggregation.
+type FacetBucket struct {
+	Key      string `json:"key"`
+	DocCount int64  `json:"doc_count"`
+}
+
+// HistogramBucket is one slot of the date histogram. Key is the epoch
+// millisecond the slot starts at; the platform always returns a fixed number of
+// slots spanning the search range, including the empty ones.
+type HistogramBucket struct {
+	Key      int64           `json:"key"`
+	DocCount int64           `json:"doc_count"`
+	SubAggs  []*SubAggResult `json:"subAggs,omitempty"`
+}
+
+// SubAggResult is a named value computed inside one histogram slot.
+type SubAggResult struct {
+	Name  string `json:"name"`
+	Value int64  `json:"value"`
+}
+
+// FacetBuckets decodes the aggregation as a term facet. It fails on the
+// dateHistogram aggregation, whose keys are numbers - read that one with
+// HistogramBuckets.
+func (a *SearchAggregate) FacetBuckets() ([]*FacetBucket, error) {
+	if a == nil || len(a.Buckets) == 0 {
+		return nil, nil
+	}
+	buckets := make([]*FacetBucket, 0, len(a.Buckets))
+	for i, raw := range a.Buckets {
+		var bucket FacetBucket
+		if err := json.Unmarshal(raw, &bucket); err != nil {
+			return nil, fmt.Errorf("facet bucket %d: %w", i, err)
+		}
+		buckets = append(buckets, &bucket)
+	}
+	return buckets, nil
+}
+
+// HistogramBuckets decodes the aggregation as the date histogram.
+func (a *SearchAggregate) HistogramBuckets() ([]*HistogramBucket, error) {
+	if a == nil || len(a.Buckets) == 0 {
+		return nil, nil
+	}
+	buckets := make([]*HistogramBucket, 0, len(a.Buckets))
+	for i, raw := range a.Buckets {
+		var bucket HistogramBucket
+		if err := json.Unmarshal(raw, &bucket); err != nil {
+			return nil, fmt.Errorf("histogram bucket %d: %w", i, err)
+		}
+		buckets = append(buckets, &bucket)
+	}
+	return buckets, nil
 }
