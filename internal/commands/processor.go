@@ -21,6 +21,12 @@ var (
 	procTestScript    string
 	procTestEvent     string
 	procTestRawSource bool
+
+	// The update flags keep their own vars: they default to "" so that an
+	// unset --type or --desc keeps the stored one, and sharing procType with
+	// 'add' would leave whichever command registered last deciding its default.
+	procUpdateType string
+	procUpdateDesc string
 )
 
 var processorCmd = &cobra.Command{
@@ -57,27 +63,9 @@ var processorAddCmd = &cobra.Command{
 	// 2. ingext processor add --name my-proc --content "function process() { ... }"
 	// 3. cat my-script.js | ingext processor add --name my-proc --content -
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var content string
-		//var err error
-
-		// CHECK: Is the user asking to read from Stdin?
-		if procContent == "-" {
-			// Read from the pipe
-			b, err := io.ReadAll(cmd.InOrStdin())
-			if err != nil {
-				return fmt.Errorf("failed to read from stdin: %w", err)
-			}
-			content = string(b)
-		} else if len(procContent) > 1 && procContent[0] == '@' {
-			filePath := procContent[1:]
-			// Read from the file path provided
-			b, err := os.ReadFile(filePath)
-			if err != nil {
-				return fmt.Errorf("failed to read file '%s': %w", filePath, err)
-			}
-			content = string(b)
-		} else {
-			content = procContent
+		content, err := readProcessorContent(procContent, cmd.InOrStdin())
+		if err != nil {
+			return err
 		}
 
 		if len(content) == 0 {
@@ -88,11 +76,42 @@ var processorAddCmd = &cobra.Command{
 		//  cmd.PrintErrln()
 		//  cmd.Printf( )  for output data/result
 		cmd.PrintErrf("Deploying processor '%s' (%d bytes)...\n", procName, len(content))
-		err := AppAPI.AddProcessor(procName, content, procType, procDesc)
+		err = AppAPI.AddProcessor(procName, content, procType, procDesc)
 		if err != nil {
 			return err
 		}
 		cmd.PrintErrln("Processor added successfully")
+		return nil
+	},
+}
+
+var processorUpdateCmd = &cobra.Command{
+	Use:   "update",
+	Short: "Update the script of an existing processor",
+	Long: `Replace the script of a processor that already exists.
+
+--content takes the script inline, '@path' to read a file, or '-' to read stdin,
+the same as 'processor add'. The stored entry is read back and patched, so the
+processor keeps its id, group, tags and the repository it was imported from, and
+an unset --type or --desc keeps the stored one.
+
+  ingext processor update --name filter-logic --content @./scripts/filter.js
+
+Updating a processor that does not exist is an error rather than an add.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		content, err := readProcessorContent(procContent, cmd.InOrStdin())
+		if err != nil {
+			return err
+		}
+		if len(content) == 0 {
+			return fmt.Errorf("processor content is empty")
+		}
+
+		cmd.PrintErrf("Updating processor '%s' (%d bytes)...\n", procName, len(content))
+		if err := AppAPI.UpdateProcessor(procName, content, procUpdateType, procUpdateDesc); err != nil {
+			return err
+		}
+		cmd.PrintErrln("Processor updated successfully")
 		return nil
 	},
 }
@@ -193,6 +212,27 @@ the non-processor types (fpl_receiver, fpl_packer, fpl_report) read.`,
 	},
 }
 
+// readProcessorContent reads a --content argument: '-' reads stdin, '@path'
+// reads that file, and anything else is the content itself.
+func readProcessorContent(content string, stdin io.Reader) (string, error) {
+	if content == "-" {
+		b, err := io.ReadAll(stdin)
+		if err != nil {
+			return "", fmt.Errorf("failed to read from stdin: %w", err)
+		}
+		return string(b), nil
+	}
+	if len(content) > 1 && content[0] == '@' {
+		filePath := content[1:]
+		b, err := os.ReadFile(filePath)
+		if err != nil {
+			return "", fmt.Errorf("failed to read file '%s': %w", filePath, err)
+		}
+		return string(b), nil
+	}
+	return content, nil
+}
+
 // readProcessorInput reads a command input that is normally a file path: '-'
 // reads stdin, a leading '@' is accepted for symmetry with 'processor add'.
 func readProcessorInput(path, flag string, stdin io.Reader) ([]byte, error) {
@@ -217,7 +257,7 @@ func readProcessorInput(path, flag string, stdin io.Reader) ([]byte, error) {
 // echo "function process() { ... }" | ingext processor add --name filter --content -
 func init() {
 	RootCmd.AddCommand(processorCmd)
-	processorCmd.AddCommand(processorAddCmd, listProcessorCmd, processorDelCmd, processorTestCmd) // Add del similarly
+	processorCmd.AddCommand(processorAddCmd, processorUpdateCmd, listProcessorCmd, processorDelCmd, processorTestCmd) // Add del similarly
 
 	//processorAddCmd.Flags().StringVar(&procName, "name", "", "Processor name")
 	//processorAddCmd.Flags().StringVar(&procFile, "file", "", "Processor file path")
@@ -229,6 +269,14 @@ func init() {
 
 	_ = processorAddCmd.MarkFlagRequired("name")
 	_ = processorAddCmd.MarkFlagRequired("content")
+
+	processorUpdateCmd.Flags().StringVar(&procName, "name", "", "Processor name")
+	processorUpdateCmd.Flags().StringVar(&procContent, "content", "", "Processor content or file path (use '-' for stdin)")
+	processorUpdateCmd.Flags().StringVar(&procUpdateType, "type", "", "Processor type (fpl_processor|fpl_receiver|fpl_packer|fpl_report); unset keeps the stored type")
+	processorUpdateCmd.Flags().StringVar(&procUpdateDesc, "desc", "", "Processor description; unset keeps the stored description")
+
+	_ = processorUpdateCmd.MarkFlagRequired("name")
+	_ = processorUpdateCmd.MarkFlagRequired("content")
 
 	processorDelCmd.Flags().StringVar(&procName, "name", "", "Processor name")
 	_ = processorDelCmd.MarkFlagRequired("name")

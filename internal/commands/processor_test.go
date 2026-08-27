@@ -7,6 +7,28 @@ import (
 	"testing"
 )
 
+func TestReadProcessorContent(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "script.fpl")
+	if err := os.WriteFile(path, []byte("function main() {}\n"), 0644); err != nil {
+		t.Fatalf("failed to write fixture: %v", err)
+	}
+
+	// Inline, '@path' and '-' are the three forms 'add' and 'update' accept.
+	if got, err := readProcessorContent("function main() {}", strings.NewReader("")); err != nil || got != "function main() {}" {
+		t.Fatalf("inline content: got %q, %v", got, err)
+	}
+	if got, err := readProcessorContent("@"+path, strings.NewReader("")); err != nil || got != "function main() {}\n" {
+		t.Fatalf("@path content: got %q, %v", got, err)
+	}
+	if got, err := readProcessorContent("-", strings.NewReader("from stdin")); err != nil || got != "from stdin" {
+		t.Fatalf("stdin content: got %q, %v", got, err)
+	}
+	if _, err := readProcessorContent("@"+filepath.Join(dir, "missing.fpl"), strings.NewReader("")); err == nil {
+		t.Fatalf("expected an error for a missing file")
+	}
+}
+
 func TestReadProcessorInput(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "script.fpl")

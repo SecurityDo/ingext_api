@@ -197,9 +197,15 @@ Deploy data processors. Supports piping input via `-` and file loading via `@pat
 ```bash
 ingext processor add --name filter-logic --content @./scripts/filter.js [--type fpl_processor] [--desc "Filter logic"]
 cat ./scripts/transform.js | ingext processor add --name transform-logic --content -
+ingext processor update --name filter-logic --content @./scripts/filter.js [--type fpl_processor] [--desc "Filter logic"]
 ingext processor list
 ingext processor del --name filter-logic
 ```
+
+`update` replaces the script of a processor that already exists — it is an error
+if it does not, rather than an add. The stored entry is read back and patched, so
+the processor keeps its id, group, tags and the repository it was imported from,
+and an unset `--type` or `--desc` keeps the stored one.
 
 Run a script against a sample event before deploying it. `--script` is the path
 to the script and `--event` the path to a JSON file holding one event object:
