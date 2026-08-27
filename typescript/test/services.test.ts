@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildFplTestSource, Ingext } from "../src/index.js";
+import { buildFplTestSource, decodeEventWatchSignals, Ingext } from "../src/index.js";
 
 interface Capture {
   url: string;
@@ -349,6 +349,66 @@ describe("PlatformService", () => {
 });
 
 describe("EventWatchService", () => {
+  it("testRule sends the whole rule under bucket and the event under input", async () => {
+    const { ingext, cap } = makeIngext(() => ({
+      hit: true,
+      output: null,
+      signals: [
+        '{"signal":"behavior:AD_Event_Log_Cleared","ts":1787853120,"count":1,"key":"dc01","valueMap":{"@fields.Channel":"System"}}',
+      ],
+      behaviorEvent: {
+        timestamp: 1787853120000,
+        key: "dc01",
+        behaviorRule: "AD_Event_Log_Cleared",
+        behavior: "security alert",
+        riskScore: 0,
+        attributes: [],
+      },
+    }));
+    const rule = { name: "AD_Event_Log_Cleared", eventType: "event" } as never;
+    const resp = await ingext.eventwatch.testRule(rule, { "@eventType": "nxlogAD" });
+    expect(cap.url).toBe("https://x.example/api/ds/eventwatch_rule_test");
+    expect(cap.body).toMatchObject({
+      kargs: {
+        bucket: { name: "AD_Event_Log_Cleared" },
+        input: { "@eventType": "nxlogAD" },
+      },
+    });
+    expect(resp.hit).toBe(true);
+
+    const signals = decodeEventWatchSignals(resp);
+    expect(signals).toHaveLength(1);
+    expect(signals[0]?.key).toBe("dc01");
+    expect(signals[0]?.valueMap["@fields.Channel"]).toBe("System");
+  });
+
+  it("testRule rejects what the endpoint panics on or ignores", async () => {
+    const { ingext } = makeIngext(() => ({ hit: false, signals: null, behaviorEvent: null }));
+    // The endpoint panics on a rule with no name.
+    await expect(ingext.eventwatch.testRule({ name: "" } as never, {})).rejects.toThrow();
+    // A non-object event is accepted on the wire and then ignored.
+    await expect(
+      ingext.eventwatch.testRule({ name: "r" } as never, [{ a: 1 }]),
+    ).rejects.toThrow();
+    await expect(ingext.eventwatch.testDeployedRule("  ", {})).rejects.toThrow();
+  });
+
+  it("testDeployedRule reads the rule before testing it", async () => {
+    const calls: string[] = [];
+    const { ingext } = makeIngext((cap) => {
+      calls.push(cap.url);
+      return cap.url.endsWith("eventwatch_bucket_dao")
+        ? { entry: { id: 101861, name: "AD_Event_Log_Cleared" } }
+        : { hit: true, signals: null, behaviorEvent: null };
+    });
+    const resp = await ingext.eventwatch.testDeployedRule("AD_Event_Log_Cleared", { a: 1 });
+    expect(resp.hit).toBe(true);
+    expect(calls).toEqual([
+      "https://x.example/api/ds/eventwatch_bucket_dao",
+      "https://x.example/api/ds/eventwatch_rule_test",
+    ]);
+  });
+
   it("ruleSearch posts to eventwatch_bucket_search with default options", async () => {
     const { ingext, cap } = makeIngext(() => ({}));
     await ingext.eventwatch.ruleSearch("attack");

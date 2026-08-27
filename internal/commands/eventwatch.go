@@ -1,12 +1,14 @@
 package commands
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"time"
 
+	ingextAPI "github.com/SecurityDo/ingext_api/api"
 	"github.com/SecurityDo/ingext_api/model"
 	"github.com/spf13/cobra"
 )
@@ -19,6 +21,7 @@ var (
 	eventwatchGroup   string
 	eventwatchContent string
 	eventwatchRule    string
+	eventwatchEvent   string
 )
 
 var eventwatchCmd = &cobra.Command{
@@ -154,6 +157,71 @@ var eventwatchRuleUpdateCmd = &cobra.Command{
 			return err
 		}
 		cmd.PrintErrf("Rule '%s' updated successfully\n", entry.Name)
+		return nil
+	},
+}
+
+var eventwatchRuleTestCmd = &cobra.Command{
+	Use:   "rule_test",
+	Short: "Run an eventwatch rule against a sample event",
+	Long: `Run one rule against one event, without deploying the rule or storing
+anything it produces.
+
+Exactly one of --name (a deployed rule) and --content (a rule JSON definition,
+'@path' or '-' for stdin, the same as rule_add) says which rule to run, and
+--event is the path to a JSON file holding one event object.
+
+  ingext eventwatch rule_test --name AD_Event_Log_Cleared --event ./sample.json
+  ingext eventwatch rule_test --content @./rule.json --event ./sample.json
+
+A miss is a result, not a failure: it exits 0 with hit false. A hit only means
+the rule's event selector matched -- a rule with no fields or behavior rule
+configured hits without producing a signal or a behavior event.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		event, err := readProcessorInput(eventwatchEvent, "--event", cmd.InOrStdin())
+		if err != nil {
+			return err
+		}
+		if b := bytes.TrimSpace(event); len(b) == 0 || b[0] != '{' {
+			return fmt.Errorf("%s must hold one event as a JSON object", eventwatchEvent)
+		}
+
+		var resp *ingextAPI.EventWatchRuleTestResult
+		if eventwatchName != "" {
+			resp, err = AppAPI.TestDeployedRule(eventwatchName, json.RawMessage(event))
+		} else {
+			var rule *model.EventWatchBucket
+			if rule, err = loadEventwatchRule(cmd); err != nil {
+				return err
+			}
+			resp, err = AppAPI.TestRule(rule, json.RawMessage(event))
+		}
+		if err != nil {
+			return err
+		}
+
+		if resp.Hit {
+			cmd.PrintErrln("hit")
+		} else {
+			cmd.PrintErrln("no hit")
+		}
+		signals, err := resp.DecodeSignals()
+		if err != nil {
+			return err
+		}
+		for _, signal := range signals {
+			cmd.PrintErrf("signal: %s key %s count %d\n", signal.Signal, signal.Key, signal.Count)
+		}
+		if resp.BehaviorEvent != nil {
+			be := resp.BehaviorEvent
+			cmd.PrintErrf("behavior: %s (%s) key %s risk %d\n", be.BehaviorRule, be.Behavior, be.Key, be.RiskScore)
+		}
+
+		b, err := json.MarshalIndent(resp, "", "  ")
+		if err != nil {
+			return err
+		}
+		cmd.Println(string(b))
 		return nil
 	},
 }
@@ -415,6 +483,7 @@ func init() {
 		eventwatchRuleGetCmd,
 		eventwatchRuleAddCmd,
 		eventwatchRuleUpdateCmd,
+		eventwatchRuleTestCmd,
 		eventwatchRuleToggleCmd,
 		eventwatchRuleDeleteCmd,
 		eventwatchGroupDeleteCmd,
@@ -445,6 +514,13 @@ func init() {
 
 	eventwatchRuleUpdateCmd.Flags().StringVar(&eventwatchContent, "content", "", "Rule JSON, '@path' file, or '-' for stdin")
 	_ = eventwatchRuleUpdateCmd.MarkFlagRequired("content")
+
+	eventwatchRuleTestCmd.Flags().StringVar(&eventwatchName, "name", "", "Name of a deployed rule to run")
+	eventwatchRuleTestCmd.Flags().StringVar(&eventwatchContent, "content", "", "Rule JSON, '@path' file, or '-' for stdin, to run instead of a deployed rule")
+	eventwatchRuleTestCmd.Flags().StringVar(&eventwatchEvent, "event", "", "Path to a JSON file holding one event object (use '-' for stdin)")
+	eventwatchRuleTestCmd.MarkFlagsMutuallyExclusive("name", "content")
+	eventwatchRuleTestCmd.MarkFlagsOneRequired("name", "content")
+	_ = eventwatchRuleTestCmd.MarkFlagRequired("event")
 
 	eventwatchRuleToggleCmd.Flags().StringVar(&eventwatchName, "name", "", "Rule name")
 	_ = eventwatchRuleToggleCmd.MarkFlagRequired("name")

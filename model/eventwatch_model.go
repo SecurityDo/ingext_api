@@ -94,17 +94,28 @@ type ValueEntry struct {
 }
 
 type BehaviorEvent struct {
-	Timestamp    int64              `json:"timestamp"`
-	Key          string             `json:"key"`
-	KeyType      string             `json:"keyType,omitempty"`
-	Title        string             `json:"title,omitempty"`
-	BehaviorRule string             `json:"behaviorRule"`
-	Behavior     string             `json:"behavior"`
-	RiskScore    int                `json:"riskScore"`
-	Attributes   []*ValueEntry      `json:"attributes"`
-	Risks        []string           `json:"risks,omitempty"`
-	RuleRisks    []string           `json:"ruleRisks,omitempty"`
-	RuleHits     []*BehaviorRuleHit `json:"ruleHits,omitempty"`
+	// Sequence, OriginalKey, OriginalKeyType, Description, ScoreLevel and
+	// AttributeMap are what eventwatch_rule_test returns on a hit; a behavior
+	// event read back from a search carries the rest. AttributeMap is kept raw:
+	// it has been null in every response seen so far. Note its capitalized JSON
+	// key, which is the endpoint's, not a typo here.
+	Sequence        int64              `json:"sequence,omitempty"`
+	Timestamp       int64              `json:"timestamp"`
+	Key             string             `json:"key"`
+	OriginalKey     string             `json:"originalKey,omitempty"`
+	OriginalKeyType string             `json:"originalKeyType,omitempty"`
+	KeyType         string             `json:"keyType,omitempty"`
+	Title           string             `json:"title,omitempty"`
+	Description     string             `json:"description,omitempty"`
+	BehaviorRule    string             `json:"behaviorRule"`
+	Behavior        string             `json:"behavior"`
+	RiskScore       int                `json:"riskScore"`
+	ScoreLevel      string             `json:"scoreLevel,omitempty"`
+	AttributeMap    json.RawMessage    `json:"AttributeMap,omitempty"`
+	Attributes      []*ValueEntry      `json:"attributes"`
+	Risks           []string           `json:"risks,omitempty"`
+	RuleRisks       []string           `json:"ruleRisks,omitempty"`
+	RuleHits        []*BehaviorRuleHit `json:"ruleHits,omitempty"`
 }
 
 type EventWatchBucket struct {

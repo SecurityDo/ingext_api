@@ -396,6 +396,18 @@ ingext eventwatch search_timeline --query "keyword"
 ingext eventwatch search_rule --query "keyword"
 ```
 
+```bash
+ingext eventwatch rule_test --name AD_Event_Log_Cleared --event ./sample-event.json
+ingext eventwatch rule_test --content @./rule.json --event ./sample-event.json
+```
+
+`rule_test` runs one rule against one event without deploying the rule or
+storing what it produces. `--name` runs a deployed rule and `--content` a rule
+JSON definition; `--event` is a file holding one event object (`-` for stdin).
+A miss exits 0 with `hit: false` — and a hit only means the rule's event
+selector matched, so a rule with no fields or behavior rule configured hits
+without producing a signal or a behavior event.
+
 Behavior filters (`behavior_filter_dao`) are keyed by the owning behavior rule
 plus the filter name — the two are joined into a single `$rule/$name` id on the
 wire — so `--rule` and `--name` are both required. A rule of `*` is the filter

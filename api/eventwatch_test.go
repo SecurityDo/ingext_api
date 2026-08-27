@@ -225,3 +225,150 @@ func TestEventWatchService_BehaviorFilterGridAccount(t *testing.T) {
 		t.Fatalf("expected no args, got %+v", got.Args)
 	}
 }
+
+// capturedRuleTest is the eventwatch_rule_test kargs as it arrives on the wire.
+type capturedRuleTest struct {
+	Bucket *model.EventWatchBucket `json:"bucket"`
+	Input  json.RawMessage         `json:"input"`
+}
+
+// newRuleTestRecorder serves a fixed response per endpoint path and records the
+// eventwatch_rule_test kargs.
+func newRuleTestRecorder(t *testing.T, ruleTest interface{}, stored *model.EventWatchBucket) (*EventWatchService, *capturedRuleTest, *[]string) {
+	t.Helper()
+	captured := &capturedRuleTest{}
+	var paths []string
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		var req fsb.CallRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+
+		var response interface{}
+		switch r.URL.Path {
+		case "/api/ds/eventwatch_rule_test":
+			if err := json.Unmarshal(req.Kargs.GetBytes(), captured); err != nil {
+				t.Fatalf("failed to decode kargs: %v", err)
+			}
+			response = ruleTest
+		case "/api/ds/eventwatch_bucket_dao":
+			response = EventWatchRuleGetResponse{Entry: stored}
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+
+		body, err := json.Marshal(response)
+		if err != nil {
+			t.Fatalf("failed to marshal response: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(fsb.CallResponse{Verdict: "OK", Response: fsb.NewJNodeByte(body)}); err != nil {
+			t.Fatalf("failed to write response: %v", err)
+		}
+	}))
+	t.Cleanup(ts.Close)
+
+	return NewEventWatchService(client.NewIngextClient(ts.URL, "", false, nil)), captured, &paths
+}
+
+func TestEventWatchService_TestRuleEvent(t *testing.T) {
+	hit := EventWatchRuleTestResult{
+		Hit: true,
+		Signals: []string{
+			`{"signal":"behavior:AD_Event_Log_Cleared","ts":1787853120,"count":1,"key":"dc01","valueMap":{"@fields.Channel":"System"}}`,
+		},
+		BehaviorEvent: &model.BehaviorEvent{
+			Timestamp:    1787853120000,
+			Key:          "dc01",
+			BehaviorRule: "AD_Event_Log_Cleared",
+			Behavior:     "security alert",
+		},
+	}
+	svc, captured, _ := newRuleTestRecorder(t, hit, nil)
+
+	rule := &model.EventWatchBucket{Name: "AD_Event_Log_Cleared", EventType: "event"}
+	event := json.RawMessage(`{"@eventType": "nxlogAD"}`)
+	resp, err := svc.TestRuleEvent(rule, event)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !resp.Hit {
+		t.Fatalf("unexpected result %+v", resp)
+	}
+	if captured.Bucket == nil || captured.Bucket.Name != "AD_Event_Log_Cleared" {
+		t.Fatalf("the whole rule goes out under bucket, got %+v", captured.Bucket)
+	}
+	// The event is a JSON object under input, not a string holding one: the
+	// endpoint accepts a string and then ignores it.
+	var got map[string]interface{}
+	if err := json.Unmarshal(captured.Input, &got); err != nil {
+		t.Fatalf("input is not a JSON object: %v", err)
+	}
+	if got["@eventType"] != "nxlogAD" {
+		t.Fatalf("event not sent verbatim: %v", got)
+	}
+
+	signals, err := resp.DecodeSignals()
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(signals) != 1 {
+		t.Fatalf("unexpected signals %+v", signals)
+	}
+	if signals[0].Signal != "behavior:AD_Event_Log_Cleared" || signals[0].Key != "dc01" || signals[0].Count != 1 {
+		t.Fatalf("signal not decoded: %+v", signals[0])
+	}
+	if signals[0].ValueMap["@fields.Channel"] != "System" {
+		t.Fatalf("valueMap not decoded: %+v", signals[0].ValueMap)
+	}
+}
+
+// TestEventWatchService_TestRuleGuards covers the two inputs the endpoint
+// answers with a panic rather than an error, and the one it silently ignores.
+func TestEventWatchService_TestRuleGuards(t *testing.T) {
+	svc, _, paths := newRuleTestRecorder(t, EventWatchRuleTestResult{}, nil)
+
+	if _, err := svc.TestRule(&EventWatchRuleTestRequest{}); err == nil {
+		t.Fatalf("expected an error for a missing rule")
+	}
+	if _, err := svc.TestRuleEvent(&model.EventWatchBucket{EventType: "event"}, nil); err == nil {
+		t.Fatalf("expected an error for a rule with no name")
+	}
+	for _, bad := range []string{`[{"a":1}]`, `"an event"`, `   `} {
+		_, err := svc.TestRuleEvent(&model.EventWatchBucket{Name: "r"}, json.RawMessage(bad))
+		if err == nil {
+			t.Fatalf("expected an error for input %q", bad)
+		}
+	}
+	if len(*paths) != 0 {
+		t.Fatalf("nothing should reach the endpoint, got %v", *paths)
+	}
+
+	// A rule with no event is allowed: the endpoint answers hit false.
+	if _, err := svc.TestRuleEvent(&model.EventWatchBucket{Name: "r"}, nil); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+// TestEventWatchService_TestDeployedRule reads the rule before testing it.
+func TestEventWatchService_TestDeployedRule(t *testing.T) {
+	stored := &model.EventWatchBucket{ID: 101861, Name: "AD_Event_Log_Cleared", Group: "AD"}
+	svc, captured, paths := newRuleTestRecorder(t, EventWatchRuleTestResult{Hit: true}, stored)
+
+	if _, err := svc.TestDeployedRule("AD_Event_Log_Cleared", json.RawMessage(`{"a":1}`)); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(*paths) != 2 || (*paths)[0] != "/api/ds/eventwatch_bucket_dao" || (*paths)[1] != "/api/ds/eventwatch_rule_test" {
+		t.Fatalf("expected a dao get then a rule test, got %v", *paths)
+	}
+	if captured.Bucket == nil || captured.Bucket.ID != 101861 {
+		t.Fatalf("the stored rule should be the one tested, got %+v", captured.Bucket)
+	}
+
+	// An empty name would return whichever rule the DAO lists first.
+	if _, err := svc.TestDeployedRule("  ", json.RawMessage(`{"a":1}`)); err == nil {
+		t.Fatalf("expected an error for an empty name")
+	}
+}

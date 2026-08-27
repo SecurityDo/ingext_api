@@ -5,7 +5,11 @@ import type {
   GenericDAORequestArgs,
   SimpleSearchOption,
 } from "../types/dao.js";
-import type { BehaviorEventFilterT, EventWatchBucket } from "../types/eventwatch.js";
+import type {
+  BehaviorEvent,
+  BehaviorEventFilterT,
+  EventWatchBucket,
+} from "../types/eventwatch.js";
 
 const DS = "api/ds";
 const RULE_DAO = "eventwatch_bucket_dao";
@@ -18,6 +22,64 @@ interface ElasticSearchRequest {
 /** Response from the eventwatch_bucket_dao "get" action. */
 interface EventWatchRuleGetResponse {
   entry: EventWatchBucket | null;
+}
+
+/**
+ * Runs one rule against one event, without deploying the rule or storing what
+ * it produces.
+ *
+ * `bucket` is the whole rule, the shape the DAO stores, and its `name` must be
+ * set: the endpoint panics on a rule with no name ("runtime error: invalid
+ * memory address or nil pointer dereference") rather than reporting it. `input`
+ * is the event as a JSON object -- a JSON string holding an event is accepted
+ * on the wire and then quietly ignored.
+ */
+export interface EventWatchRuleTestRequest {
+  bucket: EventWatchBucket;
+  input?: unknown;
+}
+
+/**
+ * Whether the rule selected the event, and what it produced from it.
+ *
+ * The event is echoed back: under `input` normally, and under `output` on a hit
+ * that produced a behavior event, where it has been null in every response seen
+ * so far. `hit` only means the event selector matched -- a rule with no fields
+ * or behavior rule configured hits without producing a signal or a behavior
+ * event. `signals` are JSON documents carried as strings; decode them with
+ * {@link decodeEventWatchSignals}.
+ */
+export interface EventWatchRuleTestResult {
+  hit: boolean;
+  input?: unknown;
+  output?: unknown;
+  signals: string[] | null;
+  behaviorEvent: BehaviorEvent | null;
+}
+
+/**
+ * One entry of `EventWatchRuleTestResult.signals`, unpacked. `ts` is in
+ * seconds, unlike the behavior event's millisecond `timestamp`.
+ */
+export interface EventWatchTestSignal {
+  signal: string;
+  ts: number;
+  count: number;
+  key: string;
+  valueMap: Record<string, string>;
+}
+
+/** Unpack the JSON documents the endpoint returns as strings. */
+export function decodeEventWatchSignals(
+  result: EventWatchRuleTestResult,
+): EventWatchTestSignal[] {
+  return (result.signals ?? []).map((raw, i) => {
+    try {
+      return JSON.parse(raw) as EventWatchTestSignal;
+    } catch (err) {
+      throw new Error(`signal ${i} is not valid JSON: ${String(err)}`);
+    }
+  });
 }
 
 /**
@@ -163,6 +225,56 @@ export class EventWatchService {
       args: { entry },
     };
     await this.client.call(DS, RULE_DAO, req);
+  }
+
+  /**
+   * Run a rule definition that need not be deployed against one event. The
+   * rule's `name` must be set and the event must be an object -- see
+   * {@link EventWatchRuleTestRequest}.
+   */
+  async testRule(
+    rule: EventWatchBucket,
+    event?: unknown,
+  ): Promise<EventWatchRuleTestResult> {
+    if (!rule?.name?.trim()) {
+      throw new Error(
+        "rule name is required: the endpoint panics on a rule with no name",
+      );
+    }
+    if (event !== undefined) {
+      if (event === null || typeof event !== "object" || Array.isArray(event)) {
+        throw new Error(
+          "event must be a JSON object: anything else is accepted and then ignored",
+        );
+      }
+    }
+    const req: EventWatchRuleTestRequest = { bucket: rule, input: event };
+    return await this.client.call<EventWatchRuleTestResult>(
+      DS,
+      "eventwatch_rule_test",
+      req,
+    );
+  }
+
+  /**
+   * Read the stored rule of that name and run it against one event. A name that
+   * is not deployed throws from the read ("bucket not found"), before anything
+   * is tested.
+   */
+  async testDeployedRule(
+    name: string,
+    event?: unknown,
+  ): Promise<EventWatchRuleTestResult> {
+    if (!name.trim()) {
+      throw new Error(
+        "rule name is required: an empty one returns whichever rule the DAO lists first",
+      );
+    }
+    const rule = await this.getRule(name);
+    if (!rule) {
+      throw new Error(`rule ${name} not found`);
+    }
+    return await this.testRule(rule, event);
   }
 
   /** Flip the disabled state of an eventwatch rule identified by name. */

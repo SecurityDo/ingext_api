@@ -65,14 +65,26 @@ export interface ValueEntry {
   value: string;
 }
 
+/**
+ * `sequence`, `originalKey`, `originalKeyType`, `description`, `scoreLevel` and
+ * `AttributeMap` are what eventwatch_rule_test returns on a hit; a behavior
+ * event read back from a search carries the rest. Note `AttributeMap`'s
+ * capitalized key, which is the endpoint's.
+ */
 export interface BehaviorEvent {
+  sequence?: number;
   timestamp: number;
   key: string;
+  originalKey?: string;
+  originalKeyType?: string;
   keyType?: string;
   title?: string;
+  description?: string;
   behaviorRule: string;
   behavior: string;
   riskScore: number;
+  scoreLevel?: string;
+  AttributeMap?: unknown;
   attributes: ValueEntry[];
   risks?: string[];
   ruleRisks?: string[];

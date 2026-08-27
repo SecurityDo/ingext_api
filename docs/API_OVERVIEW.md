@@ -62,6 +62,11 @@ type GenericDaoRequest[T any] struct {
 * eventwatch_bucket_search (kargs: options with SimpleSearchOption) — rule search
 * eventwatch_bucket_delete_group (kargs: group) — delete all rules in a group
 * eventwatch_bucket_dao (dao-style: action = list | get | add | update | delete | toggle) — EventWatchBucket CRUD, keyed by rule name
+* eventwatch_rule_test (kargs: bucket, input) — run one rule against one event, without deploying the rule or storing what it produces
+** bucket is a whole EventWatchBucket, deployed or not, and input is the event as a JSON object. Neither is validated: a missing bucket, or one whose name is empty, is answered with a panic ("runtime error: invalid memory address or nil pointer dereference") rather than an error, and an input that is not an object (a JSON string holding an event, an array) is accepted and then ignored, leaving hit false with nothing to show for it.
+** The response is {hit, input | output, signals, behaviorEvent}. The event is echoed back under input, or under output on a hit that produced a behavior event, where it has been null in every response seen so far.
+** hit only means the event selector matched. A rule with no fields or behavior rule configured hits with signals and behaviorEvent null, and a rule whose isProcessor is set hits the same way.
+** signals are JSON documents carried as strings: {signal, ts, count, key, valueMap}, where ts is in seconds while behaviorEvent.timestamp is in milliseconds.
 * behavior_filter_dao (dao-style: action = list | get | add | update | delete | toggle) — BehaviorEventFilterT CRUD
 ** A behavior filter is keyed by (behaviorRule, name), not by name alone: together they form the etcd key acc_$account/fsm/filters/$behaviorRule/$name. The pair travels in the single "id" arg joined by a slash — "$behaviorRule/$name".
 ** The server splits id on the *first* slash, so a filter name may contain slashes but a behavior rule may not. An id with no slash at all is rejected as "invalid filter name".

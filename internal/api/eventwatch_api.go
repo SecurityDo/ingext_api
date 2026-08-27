@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 
 	fluencyAPI "github.com/SecurityDo/ingext_api/api"
@@ -58,6 +59,30 @@ func (c *Client) GetRule(name string) (*model.EventWatchBucket, error) {
 	if err != nil {
 		c.Logger.Error("failed to get eventwatch rule", "name", name, "error", err)
 		return nil, fmt.Errorf("failed to get eventwatch rule %q: %w", name, err)
+	}
+	return resp, nil
+}
+
+// TestRule runs a rule definition against one event via the eventwatch_rule_test
+// API, without deploying the rule or storing what it produces.
+func (c *Client) TestRule(rule *model.EventWatchBucket, event json.RawMessage) (*fluencyAPI.EventWatchRuleTestResult, error) {
+	svc := fluencyAPI.NewEventWatchService(c.ingextClient)
+	resp, err := svc.TestRuleEvent(rule, event)
+	if err != nil {
+		c.Logger.Error("failed to test eventwatch rule", "error", err)
+		return nil, fmt.Errorf("failed to test eventwatch rule: %w", err)
+	}
+	return resp, nil
+}
+
+// TestDeployedRule reads the stored rule of that name and runs it against one
+// event via the eventwatch_rule_test API.
+func (c *Client) TestDeployedRule(name string, event json.RawMessage) (*fluencyAPI.EventWatchRuleTestResult, error) {
+	svc := fluencyAPI.NewEventWatchService(c.ingextClient)
+	resp, err := svc.TestDeployedRule(name, event)
+	if err != nil {
+		c.Logger.Error("failed to test eventwatch rule", "name", name, "error", err)
+		return nil, fmt.Errorf("failed to test eventwatch rule %q: %w", name, err)
 	}
 	return resp, nil
 }

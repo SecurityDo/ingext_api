@@ -1,6 +1,8 @@
 package api
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -139,6 +141,105 @@ func (s *EventWatchService) GetRule(name string) (*model.EventWatchBucket, error
 		return nil, err
 	}
 	return resp.Entry, nil
+}
+
+// --- EventWatch rule test (eventwatch_rule_test) ---
+
+// EventWatchRuleTestRequest runs one rule against one event, without deploying
+// the rule or storing anything it produces.
+//
+// Bucket is the whole rule, the same shape the DAO stores, and its Name must be
+// set: the endpoint panics on a rule with no name ("runtime error: invalid
+// memory address or nil pointer dereference") rather than reporting it. Input
+// is the event, as a JSON object -- a JSON string holding an event is accepted
+// on the wire and then quietly ignored.
+type EventWatchRuleTestRequest struct {
+	Bucket *model.EventWatchBucket `json:"bucket"`
+	Input  json.RawMessage         `json:"input,omitempty"`
+}
+
+// EventWatchRuleTestResult reports whether the rule selected the event and what
+// it produced from it.
+//
+// The event is echoed back: under Input normally, and under Output on a hit
+// that produced a behavior event, where it has been null in every response seen
+// so far. Hit only means the event selector matched -- a rule with no fields or
+// behavior rule configured hits without producing a signal or a behavior event.
+// Signals are JSON documents carried as strings; DecodeSignals unpacks them.
+type EventWatchRuleTestResult struct {
+	Hit           bool                 `json:"hit"`
+	Input         json.RawMessage      `json:"input,omitempty"`
+	Output        json.RawMessage      `json:"output,omitempty"`
+	Signals       []string             `json:"signals"`
+	BehaviorEvent *model.BehaviorEvent `json:"behaviorEvent"`
+}
+
+// EventWatchTestSignal is one entry of EventWatchRuleTestResult.Signals, once
+// unpacked. TS is in seconds, unlike the behavior event's millisecond
+// timestamp.
+type EventWatchTestSignal struct {
+	Signal   string            `json:"signal"`
+	TS       int64             `json:"ts"`
+	Count    int               `json:"count"`
+	Key      string            `json:"key"`
+	ValueMap map[string]string `json:"valueMap"`
+}
+
+// DecodeSignals unpacks the JSON documents the endpoint returns as strings.
+func (r *EventWatchRuleTestResult) DecodeSignals() ([]*EventWatchTestSignal, error) {
+	signals := make([]*EventWatchTestSignal, 0, len(r.Signals))
+	for i, raw := range r.Signals {
+		signal := &EventWatchTestSignal{}
+		if err := json.Unmarshal([]byte(raw), signal); err != nil {
+			return nil, fmt.Errorf("signal %d is not valid JSON: %w", i, err)
+		}
+		signals = append(signals, signal)
+	}
+	return signals, nil
+}
+
+// TestRule runs a rule against one event. See EventWatchRuleTestRequest for
+// what the endpoint requires of the two.
+func (s *EventWatchService) TestRule(req *EventWatchRuleTestRequest) (*EventWatchRuleTestResult, error) {
+	if req.Bucket == nil {
+		return nil, fmt.Errorf("rule is required: the endpoint panics without one")
+	}
+	if strings.TrimSpace(req.Bucket.Name) == "" {
+		return nil, fmt.Errorf("rule name is required: the endpoint panics on a rule with no name")
+	}
+	if len(req.Input) > 0 {
+		if b := bytes.TrimSpace(req.Input); len(b) == 0 || b[0] != '{' {
+			return nil, fmt.Errorf("event must be a JSON object: anything else is accepted and then ignored")
+		}
+	}
+	var resp EventWatchRuleTestResult
+	if err := s.call("eventwatch_rule_test", req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// TestRuleEvent runs a rule definition that need not be deployed against one
+// event.
+func (s *EventWatchService) TestRuleEvent(rule *model.EventWatchBucket, event json.RawMessage) (*EventWatchRuleTestResult, error) {
+	return s.TestRule(&EventWatchRuleTestRequest{Bucket: rule, Input: event})
+}
+
+// TestDeployedRule reads the stored rule of that name and runs it against one
+// event. A name that is not deployed is an error from the read ("bucket not
+// found"), before anything is tested.
+func (s *EventWatchService) TestDeployedRule(name string, event json.RawMessage) (*EventWatchRuleTestResult, error) {
+	if strings.TrimSpace(name) == "" {
+		return nil, fmt.Errorf("rule name is required: an empty one returns whichever rule the DAO lists first")
+	}
+	rule, err := s.GetRule(name)
+	if err != nil {
+		return nil, err
+	}
+	if rule == nil {
+		return nil, fmt.Errorf("rule %s not found", name)
+	}
+	return s.TestRuleEvent(rule, event)
 }
 
 // AddRule creates a new eventwatch rule.
