@@ -129,6 +129,86 @@ func TestPlatformService_TestProcessorDefaultsType(t *testing.T) {
 	}
 }
 
+// capturedProcessorValidate is the platform_processor_validate kargs as it
+// arrives on the wire.
+type capturedProcessorValidate struct {
+	Name   string `json:"name"`
+	Script string `json:"script"`
+}
+
+func newProcessorValidateRecorder(t *testing.T, response FPLProcessorValidateResult) (*PlatformService, *capturedProcessorValidate) {
+	t.Helper()
+	captured := &capturedProcessorValidate{}
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/ds/platform_processor_validate" {
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+		var req fsb.CallRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if err := json.Unmarshal(req.Kargs.GetBytes(), captured); err != nil {
+			t.Fatalf("failed to decode kargs: %v", err)
+		}
+		body, err := json.Marshal(response)
+		if err != nil {
+			t.Fatalf("failed to marshal response: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(fsb.CallResponse{Verdict: "OK", Response: fsb.NewJNodeByte(body)}); err != nil {
+			t.Fatalf("failed to write response: %v", err)
+		}
+	}))
+	t.Cleanup(ts.Close)
+
+	return NewPlatformService(client.NewIngextClient(ts.URL, "", false, nil)), captured
+}
+
+// TestPlatformService_ValidateProcessor covers the trap the two helpers exist
+// for: name and script are alternatives, and a name on the wire makes the
+// endpoint compile the stored processor and ignore the script it was sent.
+func TestPlatformService_ValidateProcessor(t *testing.T) {
+	svc, captured := newProcessorValidateRecorder(t, FPLProcessorValidateResult{OK: true})
+
+	script := "function main({obj, size}) { return { status: \"pass\" } }"
+	resp, err := svc.ValidateProcessorScript(script)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !resp.OK {
+		t.Fatalf("unexpected result %+v", resp)
+	}
+	if captured.Script != script {
+		t.Fatalf("script not sent verbatim: %q", captured.Script)
+	}
+	if captured.Name != "" {
+		t.Fatalf("a name would make the endpoint validate the stored processor instead, got %q", captured.Name)
+	}
+
+	if _, err = svc.ValidateDeployedProcessor("Mimecast_Adjustments"); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if captured.Name != "Mimecast_Adjustments" {
+		t.Fatalf("unexpected name %q", captured.Name)
+	}
+	if captured.Script != "" {
+		t.Fatalf("the script is ignored when a name is sent, so it should stay empty, got %q", captured.Script)
+	}
+
+	// A script that does not compile is a result, not a call error.
+	svc, _ = newProcessorValidateRecorder(t, FPLProcessorValidateResult{
+		Error: "line 1:26 mismatched input ';'",
+	})
+	resp, err = svc.ValidateProcessorScript("function main() { let x = ; }")
+	if err != nil {
+		t.Fatalf("a failed compile should not be an error, got %v", err)
+	}
+	if resp.OK || resp.Error == "" {
+		t.Fatalf("unexpected result %+v", resp)
+	}
+}
+
 func TestNewFPLTestDocument(t *testing.T) {
 	doc, err := NewFPLTestDocument(json.RawMessage(`{"a": 1, "b": "x"}`))
 	if err != nil {

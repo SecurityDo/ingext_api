@@ -207,6 +207,20 @@ if it does not, rather than an add. The stored entry is read back and patched, s
 the processor keeps its id, group, tags and the repository it was imported from,
 and an unset `--type` or `--desc` keeps the stored one.
 
+Compile a script without running it — a parse check, not a test run:
+
+```bash
+ingext processor validate --script ./scripts/filter.js
+ingext processor validate --name filter-logic
+```
+
+`--script` and `--name` are alternatives: the endpoint ignores the script it is
+sent whenever a name comes with it, so passing both would silently validate the
+deployed one. A script whose `main()` would fail on every event still validates,
+and so does one with no `main()` at all — use `processor test` to run it against
+a sample event. A `--name` that is not deployed fails the same way a parse error
+does.
+
 Run a script against a sample event before deploying it. `--script` is the path
 to the script and `--event` the path to a JSON file holding one event object:
 

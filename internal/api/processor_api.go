@@ -95,6 +95,38 @@ func (c *Client) ListProcessor() (entries []*model.FPLScript, err error) {
 	return entries, nil
 }
 
+// ValidateProcessorScript compiles a script that has not been deployed, without
+// running it: a script that would fail on every event still validates, and so
+// does one with no main(). A parse error is reported in the result rather than
+// as an error.
+func (c *Client) ValidateProcessorScript(script string) (*ingextAPI.FPLProcessorValidateResult, error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	resp, err := platformService.ValidateProcessorScript(script)
+
+	if err != nil {
+		c.Logger.Error("failed to validate processor script", "error", err)
+		return nil, fmt.Errorf("failed to validate processor script: %s", err.Error())
+	}
+	return resp, nil
+}
+
+// ValidateDeployedProcessor compiles the stored processor of that name. A name
+// that is not deployed comes back as a failed validation, not an error.
+func (c *Client) ValidateDeployedProcessor(name string) (*ingextAPI.FPLProcessorValidateResult, error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	resp, err := platformService.ValidateDeployedProcessor(name)
+
+	if err != nil {
+		c.Logger.Error("failed to validate processor", "name", name, "error", err)
+		return nil, fmt.Errorf("failed to validate processor %s: %s", name, err.Error())
+	}
+	return resp, nil
+}
+
 // TestProcessor runs an FPL script against one sample document without
 // deploying it. source is what the runtime named by processorType reads: an
 // fpl_processor takes the JSON document envelope built by

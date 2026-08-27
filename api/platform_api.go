@@ -109,11 +109,21 @@ type PipeProcessorUpdateReq struct {
 	ProcessorName string `json:"processorName"`
 }
 
+// FPLProcessorValidateRequest compiles one script without running it. Name and
+// Script are alternatives, not a pair: a non-empty Name makes the endpoint
+// validate the *stored* processor of that name and ignore Script entirely, so
+// sending both silently validates the deployed script instead of the one in
+// hand. Use ValidateProcessorScript or ValidateDeployedProcessor rather than
+// filling this in by hand.
 type FPLProcessorValidateRequest struct {
 	Name   string `json:"name"`
 	Script string `json:"script"`
 }
 
+// FPLProcessorValidateResult reports a compile, not a run: a script that would
+// fail on every event still validates, and so does one with no main() at all.
+// A failed lookup is reported here too -- OK false, Error "processor <name> not
+// found" -- rather than as a call error.
 type FPLProcessorValidateResult struct {
 	Console string `json:"console"`
 	Error   string `json:"error"`
@@ -1020,13 +1030,32 @@ func (s *PlatformService) DeleteProcessor(name string) error {
 	return s.call("platform_processor_dao", req, nil)
 }
 
-// ValidateProcessor compiles and validates a processor script.
+// ValidateProcessor compiles and validates a processor script. Read the note on
+// FPLProcessorValidateRequest before setting both of its fields.
 func (s *PlatformService) ValidateProcessor(req *FPLProcessorValidateRequest) (*FPLProcessorValidateResult, error) {
 	var resp FPLProcessorValidateResult
 	if err := s.call("platform_processor_validate", req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
+}
+
+// ValidateProcessorScript compiles a script that has not been deployed. The
+// name is left empty on purpose: that is what makes the endpoint compile the
+// script it was given rather than look one up.
+//
+// It is a compile and nothing more. A script whose main() would fail on every
+// event validates, and so does one with no main() -- only a parse error, or a
+// statement outside a function ("instruction out of main function"), fails.
+func (s *PlatformService) ValidateProcessorScript(script string) (*FPLProcessorValidateResult, error) {
+	return s.ValidateProcessor(&FPLProcessorValidateRequest{Script: script})
+}
+
+// ValidateDeployedProcessor compiles the stored processor of that name. A name
+// that is not deployed is not an error: the result is OK false with "processor
+// <name> not found".
+func (s *PlatformService) ValidateDeployedProcessor(name string) (*FPLProcessorValidateResult, error) {
+	return s.ValidateProcessor(&FPLProcessorValidateRequest{Name: name})
 }
 
 // TestProcessor executes a processor script against sample data. An unset Type

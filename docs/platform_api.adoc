@@ -270,6 +270,11 @@ type PipeProcessorUpdateReq struct {
 
 == platform_processor_validate
 
+* compile one script, without running it
+* name and script are alternatives, not a pair: a non-empty name validates the *stored* processor of that name and the script sent with it is ignored, so a broken script paired with a deployed name comes back ok
+* a name that is not deployed is not a call error either -- ok is false with "processor <name> not found"
+* it is a compile and nothing more: a script whose main() would fail on every event still validates, and so does one with no main() at all. A parse error fails, and so does a statement outside a function ("instruction out of main function").
+
 ----
 type fplProcessorValidateRequest struct {
 	Name   string `json:"name"`

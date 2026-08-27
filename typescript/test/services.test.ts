@@ -279,6 +279,25 @@ describe("PlatformService", () => {
     });
   });
 
+  it("validateProcessorScript sends an empty name so the script is compiled", async () => {
+    const { ingext, cap } = makeIngext(() => ({ console: "", error: "", ok: true }));
+    const script = "function main({obj}) { return { status: \"pass\" } }";
+    const resp = await ingext.platform.validateProcessorScript(script);
+    expect(cap.url).toBe("https://x.example/api/ds/platform_processor_validate");
+    expect(resp.ok).toBe(true);
+    // A name on the wire makes the endpoint compile the stored processor and
+    // ignore the script it was sent.
+    expect(cap.body).toMatchObject({ kargs: { name: "", script } });
+  });
+
+  it("validateDeployedProcessor sends the name and no script", async () => {
+    const { ingext, cap } = makeIngext(() => ({ console: "", error: "", ok: true }));
+    await ingext.platform.validateDeployedProcessor("Mimecast_Adjustments");
+    expect(cap.body).toMatchObject({
+      kargs: { name: "Mimecast_Adjustments", script: "" },
+    });
+  });
+
   it("testProcessorObject wraps the event in the document envelope", async () => {
     const { ingext, cap } = makeIngext(() => ({
       console: "",

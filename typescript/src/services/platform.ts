@@ -98,11 +98,25 @@ export interface PipeProcessorUpdateReq {
   processorName: string;
 }
 
+/**
+ * Compiles one script without running it. `name` and `script` are alternatives,
+ * not a pair: a non-empty `name` makes the endpoint validate the *stored*
+ * processor of that name and ignore `script` entirely, so sending both silently
+ * validates the deployed script instead of the one in hand. Prefer
+ * {@link PlatformService.validateProcessorScript} or
+ * {@link PlatformService.validateDeployedProcessor}.
+ */
 export interface FPLProcessorValidateRequest {
   name: string;
   script: string;
 }
 
+/**
+ * Reports a compile, not a run: a script that would fail on every event still
+ * validates, and so does one with no `main()` at all. A failed lookup is
+ * reported here too -- `ok` false, `error` "processor <name> not found" --
+ * rather than as a thrown call error.
+ */
 export interface FPLProcessorValidateResult {
   console: string;
   error: string;
@@ -607,6 +621,10 @@ export class PlatformService {
     await this.client.call(DS, "platform_processor_dao", req);
   }
 
+  /**
+   * Compiles and validates a processor script. Read the note on
+   * {@link FPLProcessorValidateRequest} before setting both of its fields.
+   */
   async validateProcessor(
     req: FPLProcessorValidateRequest,
   ): Promise<FPLProcessorValidateResult> {
@@ -615,6 +633,30 @@ export class PlatformService {
       "platform_processor_validate",
       req,
     );
+  }
+
+  /**
+   * Compiles a script that has not been deployed. The name is left empty on
+   * purpose: that is what makes the endpoint compile the script it was given
+   * rather than look one up.
+   *
+   * It is a compile and nothing more -- only a parse error, or a statement
+   * outside a function ("instruction out of main function"), fails.
+   */
+  async validateProcessorScript(
+    script: string,
+  ): Promise<FPLProcessorValidateResult> {
+    return await this.validateProcessor({ name: "", script });
+  }
+
+  /**
+   * Compiles the stored processor of that name. A name that is not deployed is
+   * not an error: the result is `ok` false with "processor <name> not found".
+   */
+  async validateDeployedProcessor(
+    name: string,
+  ): Promise<FPLProcessorValidateResult> {
+    return await this.validateProcessor({ name, script: "" });
   }
 
   /**

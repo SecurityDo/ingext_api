@@ -27,6 +27,9 @@ var (
 	// 'add' would leave whichever command registered last deciding its default.
 	procUpdateType string
 	procUpdateDesc string
+
+	procValidateScript string
+	procValidateName   string
 )
 
 var processorCmd = &cobra.Command{
@@ -130,6 +133,63 @@ var processorDelCmd = &cobra.Command{
 			return err
 		}
 		cmd.PrintErrln("Processor deleted successfully")
+		return nil
+	},
+}
+
+var processorValidateCmd = &cobra.Command{
+	Use:   "validate",
+	Short: "Compile a processor script without running it",
+	Long: `Compile an FPL script and report whether it parses.
+
+Exactly one of --script (a path to a script that need not be deployed, '-' for
+stdin) and --name (a deployed processor) is validated. They are alternatives:
+the endpoint ignores the script it is sent whenever a name comes with it, so
+passing both would silently validate the deployed one.
+
+  ingext processor validate --script ./cloudtrail.fpl
+  ingext processor validate --name Mimecast_Adjustments
+
+This is a compile and nothing more. A script whose main() would fail on every
+event still validates, and so does one with no main() at all -- use 'processor
+test' to run it against a sample event. What does fail is a parse error, a
+statement outside a function, and a --name that is not deployed.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		var (
+			resp   *ingextAPI.FPLProcessorValidateResult
+			err    error
+			target string
+		)
+		if procValidateName != "" {
+			target = procValidateName
+			resp, err = AppAPI.ValidateDeployedProcessor(procValidateName)
+		} else {
+			var script []byte
+			if script, err = readProcessorInput(procValidateScript, "--script", cmd.InOrStdin()); err != nil {
+				return err
+			}
+			if len(bytes.TrimSpace(script)) == 0 {
+				return fmt.Errorf("script %s is empty", procValidateScript)
+			}
+			target = procValidateScript
+			if target == "-" {
+				target = "stdin"
+			}
+			resp, err = AppAPI.ValidateProcessorScript(string(script))
+		}
+		if err != nil {
+			return err
+		}
+
+		if resp.Console != "" {
+			cmd.PrintErrln(strings.TrimRight(resp.Console, "\n"))
+		}
+		// Not always a compile error: a --name that is not deployed is
+		// reported the same way.
+		if !resp.OK {
+			return fmt.Errorf("%s: %s", target, resp.Error)
+		}
+		cmd.PrintErrf("%s compiles\n", target)
 		return nil
 	},
 }
@@ -257,7 +317,7 @@ func readProcessorInput(path, flag string, stdin io.Reader) ([]byte, error) {
 // echo "function process() { ... }" | ingext processor add --name filter --content -
 func init() {
 	RootCmd.AddCommand(processorCmd)
-	processorCmd.AddCommand(processorAddCmd, processorUpdateCmd, listProcessorCmd, processorDelCmd, processorTestCmd) // Add del similarly
+	processorCmd.AddCommand(processorAddCmd, processorUpdateCmd, listProcessorCmd, processorDelCmd, processorValidateCmd, processorTestCmd) // Add del similarly
 
 	//processorAddCmd.Flags().StringVar(&procName, "name", "", "Processor name")
 	//processorAddCmd.Flags().StringVar(&procFile, "file", "", "Processor file path")
@@ -280,6 +340,14 @@ func init() {
 
 	processorDelCmd.Flags().StringVar(&procName, "name", "", "Processor name")
 	_ = processorDelCmd.MarkFlagRequired("name")
+
+	processorValidateCmd.Flags().StringVar(&procValidateScript, "script", "", "Path to the FPL script to compile (use '-' for stdin)")
+	processorValidateCmd.Flags().StringVar(&procValidateName, "name", "", "Name of a deployed processor to compile instead")
+
+	// The endpoint ignores the script whenever a name is sent with it, so the
+	// two are alternatives rather than a pair.
+	processorValidateCmd.MarkFlagsMutuallyExclusive("script", "name")
+	processorValidateCmd.MarkFlagsOneRequired("script", "name")
 
 	processorTestCmd.Flags().StringVar(&procTestScript, "script", "", "Path to the FPL script to test (use '-' for stdin)")
 	processorTestCmd.Flags().StringVar(&procTestEvent, "event", "", "Path to a JSON file holding one event object (use '-' for stdin)")
