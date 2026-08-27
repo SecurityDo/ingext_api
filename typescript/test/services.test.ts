@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { Ingext } from "../src/index.js";
+import { buildFplTestSource, Ingext } from "../src/index.js";
 
 interface Capture {
   url: string;
@@ -277,6 +277,55 @@ describe("PlatformService", () => {
     expect(cap.body).toMatchObject({
       kargs: { routerName: "main", pipeName: "p1", processorName: "filter" },
     });
+  });
+
+  it("testProcessorObject wraps the event in the document envelope", async () => {
+    const { ingext, cap } = makeIngext(() => ({
+      console: "",
+      error: "",
+      newContent: '{"obj":{"@type":"event"},"props":{},"size":17,"source":""}',
+      status: "pass",
+    }));
+    const script = "function main({obj, size}) { return { status: \"pass\" } }";
+    const resp = await ingext.platform.testProcessorObject(script, {
+      "@cloudtrail": { eventName: "DescribeInstanceStatus" },
+    });
+    expect(cap.url).toBe("https://x.example/api/ds/platform_processor_test");
+    expect(resp.status).toBe("pass");
+
+    const kargs = (cap.body as { kargs: Record<string, unknown> }).kargs;
+    expect(kargs.script).toBe(script);
+    expect(kargs.type).toBe("fpl_processor");
+    expect(kargs.name).toBeUndefined();
+    // source is a JSON string holding the envelope, not a nested object.
+    expect(typeof kargs.source).toBe("string");
+    const doc = JSON.parse(kargs.source as string);
+    expect(doc.obj).toEqual({ "@cloudtrail": { eventName: "DescribeInstanceStatus" } });
+    expect(doc.props).toEqual({});
+    expect(doc.source).toBe("");
+    // size is the byte length of the compact obj, what main({obj, size}) reads.
+    expect(doc.size).toBe(JSON.stringify(doc.obj).length);
+  });
+
+  it("testProcessor defaults the runtime type and keeps an explicit one", async () => {
+    const { ingext, cap } = makeIngext(() => ({ console: "", error: "", newContent: "", status: "pass" }));
+    await ingext.platform.testProcessor({ script: "function main() {}", source: "raw payload" });
+    expect(cap.body).toMatchObject({
+      kargs: { source: "raw payload", type: "fpl_processor" },
+    });
+    await ingext.platform.testProcessor({
+      script: "function main() {}",
+      source: "raw payload",
+      type: "fpl_receiver",
+    });
+    expect(cap.body).toMatchObject({ kargs: { type: "fpl_receiver" } });
+  });
+
+  it("buildFplTestSource rejects anything that is not a JSON object", () => {
+    expect(() => buildFplTestSource([{ a: 1 }])).toThrow();
+    expect(() => buildFplTestSource("a string")).toThrow();
+    expect(() => buildFplTestSource(null)).toThrow();
+    expect(buildFplTestSource({ a: 1 })).toBe('{"obj":{"a":1},"props":{},"size":7,"source":""}');
   });
 });
 

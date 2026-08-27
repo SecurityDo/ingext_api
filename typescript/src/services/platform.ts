@@ -109,10 +109,55 @@ export interface FPLProcessorValidateResult {
   ok: boolean;
 }
 
+/**
+ * Runs one script against one sample document without deploying it. `type`
+ * selects the runtime and decides how `source` is read: an `fpl_processor`
+ * takes the JSON document envelope of {@link FPLTestDocument} and returns the
+ * mutated envelope, while an `fpl_receiver` takes its raw payload and returns
+ * `{"docs": [...]}`. An empty or unrecognized `type` falls back to the
+ * processor runtime. `name` is not looked up -- the script under test is the
+ * one in `script`, deployed or not.
+ */
 export interface FPLProcessorTestRequest {
-  name: string;
+  name?: string;
   script: string;
   source: string;
+  type?: string;
+  tenant?: string;
+}
+
+/**
+ * The document envelope an `fpl_processor` script is handed as its
+ * `main({obj, size})` argument. platform_processor_test carries it as a JSON
+ * *string* in the request's `source` field, not as a nested object, and returns
+ * the mutated envelope the same way in `FPLProcessorTestResult.newContent`.
+ */
+export interface FPLTestDocument {
+  obj: unknown;
+  props: Record<string, unknown>;
+  size: number;
+  source: string;
+}
+
+/**
+ * Wraps one event object in the test envelope and renders it as the JSON string
+ * the `source` field carries. `size` is the compact byte length of the object,
+ * standing in for the size the ingest path would have measured on the wire.
+ */
+export function buildFplTestSource(obj: unknown): string {
+  if (obj === null || typeof obj !== "object" || Array.isArray(obj)) {
+    throw new Error(
+      "event object must be a JSON object, since the script destructures it as main({obj, size})",
+    );
+  }
+  const encoded = JSON.stringify(obj);
+  const doc: FPLTestDocument = {
+    obj,
+    props: {},
+    size: new TextEncoder().encode(encoded).length,
+    source: "",
+  };
+  return JSON.stringify(doc);
 }
 
 export interface FPLProcessorTestResult {
@@ -572,14 +617,38 @@ export class PlatformService {
     );
   }
 
+  /**
+   * Runs a processor script against sample data. An unset `type` is sent as
+   * `fpl_processor`, which is the runtime the endpoint falls back to anyway, so
+   * that the request on the wire says which one it meant.
+   *
+   * A script that fails on the document is not a call failure: the message
+   * lands in the result's `error` field with an empty `status`, and only
+   * transport and endpoint errors -- an empty `source` among them -- throw.
+   */
   async testProcessor(
     req: FPLProcessorTestRequest,
   ): Promise<FPLProcessorTestResult> {
     return await this.client.call<FPLProcessorTestResult>(
       DS,
       "platform_processor_test",
-      req,
+      { ...req, type: req.type || "fpl_processor" },
     );
+  }
+
+  /**
+   * Runs an `fpl_processor` script against one event object, wrapping it in the
+   * document envelope the endpoint expects in its `source` field.
+   */
+  async testProcessorObject(
+    script: string,
+    obj: unknown,
+  ): Promise<FPLProcessorTestResult> {
+    return await this.testProcessor({
+      script,
+      source: buildFplTestSource(obj),
+      type: "fpl_processor",
+    });
   }
 
   // ---- Source-router wiring + pipes ----

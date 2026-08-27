@@ -285,11 +285,20 @@ type fplProcessorValidateResult struct {
 
 == platform_processor_test
 
+* run one script against one sample document, without deploying it
+* type names the runtime that reads source, and is what the console sends along with an empty tenant
+** "fpl_processor" (also the fallback for an empty or unrecognized type): source is the JSON document envelope below, and newContent is the mutated envelope
+** "fpl_receiver": source is the raw payload, and newContent is {"docs": [...]}
+* name is not looked up: the script under test is the one in script, deployed or not
+* a script that fails the document is not a call failure -- the message comes back in error with an empty status. An empty source is: the verdict is ERROR, "source is empty".
+
 ----
 type fplProcessorTestRequest struct {
 	Name   string `json:"name"`
 	Script string `json:"script"`
 	Source string `json:"source"`
+	Type   string `json:"type"`
+	Tenant string `json:"tenant"`
 }
 
 type fplProcessorTestResult struct {
@@ -299,6 +308,12 @@ type fplProcessorTestResult struct {
 	NewContent string `json:"newContent"`
 	Status     string `json:"status"`
 }
+----
+
+* the source of an fpl_processor is a JSON *string* holding the document the script is handed as main({obj, size}), not a nested object. size is the byte length of obj, and props is {} rather than null.
+
+----
+{"obj": {"@cloudtrail": {...}}, "props": {}, "size": 1333, "source": ""}
 ----
 
 == platform_event_tail 

@@ -19,7 +19,7 @@ export { EventWatchService, type EventWatchRuleListResponse } from "./services/e
 export { FPLService } from "./services/fpl.js";
 export { GridService } from "./services/grid.js";
 export { NotificationService } from "./services/notification.js";
-export { PlatformService } from "./services/platform.js";
+export { PlatformService, buildFplTestSource } from "./services/platform.js";
 export { RepoService } from "./services/repo.js";
 export { ResourceService } from "./services/resource.js";
 export {
@@ -59,6 +59,7 @@ export type {
   FPLProcessorTestResult,
   FPLProcessorValidateRequest,
   FPLProcessorValidateResult,
+  FPLTestDocument,
   GetComponentStateResponse,
   ListComponentErrorResponse,
   ListConfigsResponse,

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -119,10 +120,58 @@ type FPLProcessorValidateResult struct {
 	OK      bool   `json:"ok"`
 }
 
+// FPLProcessorTestRequest runs one script against one sample document without
+// deploying it. Type selects the runtime and decides how Source is read: an
+// fpl_processor takes the JSON document envelope of FPLTestDocument and returns
+// the mutated envelope, while an fpl_receiver takes its raw payload and returns
+// {"docs": [...]}. An empty or unrecognized Type falls back to the processor
+// runtime. Name is not looked up -- the script under test is the one in Script,
+// deployed or not. Tenant is empty unless the script is tested for one.
 type FPLProcessorTestRequest struct {
-	Name   string `json:"name"`
+	Name   string `json:"name,omitempty"`
 	Script string `json:"script"`
 	Source string `json:"source"`
+	Type   string `json:"type"`
+	Tenant string `json:"tenant"`
+}
+
+// FPLTestDocument is the document envelope an fpl_processor script is handed as
+// its main({obj, size}) argument. platform_processor_test carries it as a JSON
+// *string* in the request's Source field, not as a nested object, and returns
+// the mutated envelope the same way in FPLProcessorTestResult.NewContent.
+type FPLTestDocument struct {
+	Obj    json.RawMessage        `json:"obj"`
+	Props  map[string]interface{} `json:"props"`
+	Size   int                    `json:"size"`
+	Source string                 `json:"source"`
+}
+
+// NewFPLTestDocument wraps one event object in the test envelope. Size is the
+// compact byte length of obj, standing in for the size the ingest path would
+// have measured on the wire, and Props is empty rather than null: the script
+// sees the field either way, and the console sends {}.
+func NewFPLTestDocument(obj json.RawMessage) (*FPLTestDocument, error) {
+	var compact bytes.Buffer
+	if err := json.Compact(&compact, obj); err != nil {
+		return nil, fmt.Errorf("event object is not valid JSON: %w", err)
+	}
+	if b := bytes.TrimSpace(compact.Bytes()); len(b) == 0 || b[0] != '{' {
+		return nil, fmt.Errorf("event object must be a JSON object, since the script destructures it as main({obj, size})")
+	}
+	return &FPLTestDocument{
+		Obj:   json.RawMessage(compact.Bytes()),
+		Props: map[string]interface{}{},
+		Size:  compact.Len(),
+	}, nil
+}
+
+// Encode renders the envelope as the JSON string the Source field carries.
+func (d *FPLTestDocument) Encode() (string, error) {
+	b, err := json.Marshal(d)
+	if err != nil {
+		return "", fmt.Errorf("encode test document: %w", err)
+	}
+	return string(b), nil
 }
 
 type FPLProcessorTestResult struct {
@@ -980,13 +1029,43 @@ func (s *PlatformService) ValidateProcessor(req *FPLProcessorValidateRequest) (*
 	return &resp, nil
 }
 
-// TestProcessor executes a processor script against sample data.
+// TestProcessor executes a processor script against sample data. An unset Type
+// is sent as "fpl_processor", which is the runtime the endpoint falls back to
+// anyway, so that the request on the wire says which one it meant.
+//
+// A script that fails on the document is not a call failure: the message lands
+// in the result's Error field with an empty Status, and only transport and
+// endpoint errors -- an empty Source among them -- come back as err.
 func (s *PlatformService) TestProcessor(req *FPLProcessorTestRequest) (*FPLProcessorTestResult, error) {
+	if req.Type == "" {
+		call := *req
+		call.Type = "fpl_processor"
+		req = &call
+	}
 	var resp FPLProcessorTestResult
 	if err := s.call("platform_processor_test", req, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
+}
+
+// TestProcessorObject runs an fpl_processor script against one event object,
+// wrapping it in the document envelope the endpoint expects in its source
+// field. It is the API behind "ingext processor test".
+func (s *PlatformService) TestProcessorObject(script string, obj json.RawMessage) (*FPLProcessorTestResult, error) {
+	doc, err := NewFPLTestDocument(obj)
+	if err != nil {
+		return nil, err
+	}
+	source, err := doc.Encode()
+	if err != nil {
+		return nil, err
+	}
+	return s.TestProcessor(&FPLProcessorTestRequest{
+		Script: script,
+		Source: source,
+		Type:   "fpl_processor",
+	})
 }
 
 // SetDataSourceRouter assigns (or removes) a router from a data source.

@@ -56,3 +56,27 @@ func (c *Client) ListProcessor() (entries []*model.FPLScript, err error) {
 	}
 	return entries, nil
 }
+
+// TestProcessor runs an FPL script against one sample document without
+// deploying it. source is what the runtime named by processorType reads: an
+// fpl_processor takes the JSON document envelope built by
+// ingextAPI.NewFPLTestDocument, other types take their raw payload.
+//
+// A script that errors on the document is reported in the result, not as an
+// error: only a transport or endpoint failure returns one.
+func (c *Client) TestProcessor(script, source, processorType string) (*ingextAPI.FPLProcessorTestResult, error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	resp, err := platformService.TestProcessor(&ingextAPI.FPLProcessorTestRequest{
+		Script: script,
+		Source: source,
+		Type:   processorType,
+	})
+
+	if err != nil {
+		c.Logger.Error("failed to test processor", "type", processorType, "error", err)
+		return nil, fmt.Errorf("failed to test processor: %s", err.Error())
+	}
+	return resp, nil
+}

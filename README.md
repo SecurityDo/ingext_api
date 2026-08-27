@@ -201,6 +201,26 @@ ingext processor list
 ingext processor del --name filter-logic
 ```
 
+Run a script against a sample event before deploying it. `--script` is the path
+to the script and `--event` the path to a JSON file holding one event object:
+
+```bash
+ingext processor test --script ./scripts/cloudtrail.fpl --event ./sample-event.json
+```
+
+The event object is wrapped in the document envelope the runtime hands the
+script as `main({obj, size})` — `{"obj": <event>, "props": {}, "size": <compact
+byte length of the event>, "source": ""}` — so the file holds the event itself,
+not the envelope. The transformed envelope is printed to stdout, and the
+script's status, `console.log` output and error to stderr. A script that aborts
+or drops the event is a result, not a CLI failure; only a script error exits
+non-zero.
+
+Either path may be `-` to read from stdin (only one of them). `--raw-source`
+sends the `--event` file verbatim as the source instead of wrapping it, which is
+what the non-processor `--type`s (`fpl_receiver`, `fpl_packer`, `fpl_report`)
+read.
+
 ### Integrations (`integration`)
 
 Manage third-party connections.

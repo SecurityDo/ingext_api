@@ -129,6 +129,16 @@ await ingext.repo.importRepoProcessors(repos[0]!.id, ["proc.fpl"]);
 // platform (sources, sinks, routers, processors, integrations, …)
 const sources = await ingext.platform.listDataSource();
 const role = await ingext.platform.getPodRole();
+
+// run a processor script against one sample event, without deploying it.
+// The event is wrapped in the {obj, props, size, source} envelope the runtime
+// hands the script as main({obj, size}); result.newContent is the mutated
+// envelope, and a script that fails the event reports it in result.error
+// rather than throwing.
+const result = await ingext.platform.testProcessorObject(script, {
+  "@cloudtrail": { eventName: "DescribeInstanceStatus" },
+});
+console.log(result.status, result.console, JSON.parse(result.newContent).obj);
 ```
 
 ## Errors
