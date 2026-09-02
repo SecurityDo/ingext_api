@@ -97,7 +97,7 @@ export interface DataSinkConfig {
   kinesis?: KinesisSinkConfig;
   firehose?: FirehoseSinkConfig;
   lambda?: AWSLambdaSinkConfig;
-  dataLake?: DataLakeSinkConfig;
+  datalake?: DataLakeSinkConfig;
   prom?: PromSinkConfig;
   loki?: LokiSinkConfig;
   secret?: unknown;

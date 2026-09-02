@@ -9,6 +9,7 @@ import (
 
 	"github.com/SecurityDo/ingext_api/client"
 	fsb "github.com/SecurityDo/ingext_api/fsb"
+	"github.com/SecurityDo/ingext_api/model"
 )
 
 // capturedProcessorTest is the platform_processor_test kargs as it arrives on
@@ -234,5 +235,86 @@ func TestNewFPLTestDocument(t *testing.T) {
 		if _, err := NewFPLTestDocument(json.RawMessage(bad)); err == nil {
 			t.Fatalf("expected an error for %q", bad)
 		}
+	}
+}
+
+// TestPlatformService_DataSinkDatalakeKey locks in the wire key for the
+// datalake block of a sink. The platform serves and reads "datalake"; tagging
+// the field "dataLake" made every datalake sink round-trip as an empty config
+// with no error from either side.
+func TestPlatformService_DataSinkDatalakeKey(t *testing.T) {
+	// Trimmed from a live platform_datasink_dao list response.
+	const listBody = `{"entries":[{"type":"datalake","name":"Office365","id":"sink_5kn54x1ufs",` +
+		`"datalake":{"schemaName":"ingext default","datalake":"managed","datalakeIndex":"Office365"}}]}`
+
+	var captured json.RawMessage
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/ds/platform_datasink_dao" {
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+		var req fsb.CallRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if req.Kargs == nil {
+			t.Fatalf("missing kargs in call request")
+		}
+		captured = append(json.RawMessage(nil), req.Kargs.GetBytes()...)
+		w.Header().Set("Content-Type", "application/json")
+		resp := fsb.CallResponse{Verdict: "OK", Response: fsb.NewJNodeByte([]byte(listBody))}
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			t.Fatalf("failed to write response: %v", err)
+		}
+	}))
+	t.Cleanup(ts.Close)
+	svc := NewPlatformService(client.NewIngextClient(ts.URL, "", false, nil))
+
+	// Decode: the server's "datalake" block must land in DataSinkConfig.DataLake.
+	entries, err := svc.ListDataSink()
+	if err != nil {
+		t.Fatalf("ListDataSink returned error: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 sink, got %d", len(entries))
+	}
+	if entries[0].DataLake == nil {
+		t.Fatalf("datalake block dropped while decoding sink %q", entries[0].Name)
+	}
+	if got := entries[0].DataLake.DatalakeIndex; got != "Office365" {
+		t.Fatalf("datalakeIndex = %q, want %q", got, "Office365")
+	}
+
+	// Encode: an added sink must put the block under "datalake" on the wire.
+	if _, err := svc.AddDataSink(&model.DataSinkConfig{
+		Type: "datalake",
+		Name: "Office365",
+		DataLake: &model.DataLakeSinkConfig{
+			Datalake:      "managed",
+			DatalakeIndex: "Office365",
+		},
+	}); err != nil {
+		t.Fatalf("AddDataSink returned error: %v", err)
+	}
+	var kargs struct {
+		Args struct {
+			Entry map[string]json.RawMessage `json:"entry"`
+		} `json:"args"`
+	}
+	if err := json.Unmarshal(captured, &kargs); err != nil {
+		t.Fatalf("failed to decode kargs: %v", err)
+	}
+	if _, ok := kargs.Args.Entry["dataLake"]; ok {
+		t.Fatalf("sink sent the datalake block as \"dataLake\"; the platform reads \"datalake\"")
+	}
+	block, ok := kargs.Args.Entry["datalake"]
+	if !ok {
+		t.Fatalf("sink sent no \"datalake\" block, kargs: %s", captured)
+	}
+	var lake model.DataLakeSinkConfig
+	if err := json.Unmarshal(block, &lake); err != nil {
+		t.Fatalf("failed to decode datalake block: %v", err)
+	}
+	if lake.Datalake != "managed" || lake.DatalakeIndex != "Office365" {
+		t.Fatalf("datalake block = %+v, want managed/Office365", lake)
 	}
 }

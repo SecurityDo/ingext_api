@@ -123,7 +123,7 @@ type DataSinkConfig struct {
 	Firehose *FirehoseSinkConfig  `json:"firehose,omitempty"`
 	Lambda   *AWSLambdaSinkConfig `json:"lambda,omitempty"`
 
-	DataLake *DataLakeSinkConfig `json:"dataLake,omitempty"`
+	DataLake *DataLakeSinkConfig `json:"datalake,omitempty"`
 
 	PROM *PromSinkConfig `json:"prom,omitempty"`
 	Loki *LokiSinkConfig `json:"loki,omitempty"`
