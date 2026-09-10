@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
@@ -39,35 +38,32 @@ func (s *MeteringService) gridCall(function string, payload interface{}, out int
 	return ApiCallWithPrefix(s.client, "api/grid", function, payload, out)
 }
 
-// dateRe is the ledger's date form. Validated client-side because the server
-// rejects a bad range with a generic parse error, and a caller that fat-fingers
-// a month gets a clearer answer here than three layers down.
-var dateRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
-
 // maxUsageRangeDays matches the server's own limit. A whole-month total in this
 // design is the sum of closed days, never one wide query, so a request spanning
 // years is a misunderstanding rather than a big report.
 const maxUsageRangeDays = 400
 
-func validateRange(from, to string) error {
-	if !dateRe.MatchString(from) || !dateRe.MatchString(to) {
-		return fmt.Errorf("from and to must be YYYY-MM-DD (UTC), got %q and %q", from, to)
-	}
-	f, err := time.Parse("2006-01-02", from)
+// normalizeRange accepts either date form on both ends and returns the wire
+// form. Mixed forms are fine -- an operator pasting a dayIndex from an index
+// name next to a hand-typed date should not have to care.
+func normalizeRange(from, to string) (string, string, error) {
+	nf, err := NormalizeDate(from)
 	if err != nil {
-		return fmt.Errorf("invalid from date %q: %w", from, err)
+		return "", "", fmt.Errorf("from: %w", err)
 	}
-	t, err := time.Parse("2006-01-02", to)
+	nt, err := NormalizeDate(to)
 	if err != nil {
-		return fmt.Errorf("invalid to date %q: %w", to, err)
+		return "", "", fmt.Errorf("to: %w", err)
 	}
+	f, _ := time.Parse(dateLayout, nf)
+	t, _ := time.Parse(dateLayout, nt)
 	if t.Before(f) {
-		return fmt.Errorf("to (%s) is before from (%s)", to, from)
+		return "", "", fmt.Errorf("to (%s) is before from (%s)", nt, nf)
 	}
 	if t.Sub(f) > maxUsageRangeDays*24*time.Hour {
-		return fmt.Errorf("range %s..%s exceeds %d days", from, to, maxUsageRangeDays)
+		return "", "", fmt.Errorf("range %s..%s exceeds %d days", nf, nt, maxUsageRangeDays)
 	}
-	return nil
+	return nf, nt, nil
 }
 
 // UsageOptions narrows a usage query.
@@ -88,7 +84,8 @@ type UsageOptions struct {
 // Check StoreAvailable before summing anything: when it is false the ledger was
 // unreachable and an empty Days says nothing about the tenant's usage.
 func (s *MeteringService) DailyUsage(from, to string, opts *UsageOptions) (*model.UsageResponse, error) {
-	if err := validateRange(from, to); err != nil {
+	from, to, err := normalizeRange(from, to)
+	if err != nil {
 		return nil, err
 	}
 	kargs := map[string]interface{}{"from": from, "to": to}
@@ -113,7 +110,8 @@ func (s *MeteringService) DailyUsage(from, to string, opts *UsageOptions) (*mode
 // collection failed look identical there; here they do not. Grep ErrorCode to
 // find every tenant-day affected by one cause.
 func (s *MeteringService) Attempts(from, to string, limit int, opts *UsageOptions) (*model.AttemptsResponse, error) {
-	if err := validateRange(from, to); err != nil {
+	from, to, err := normalizeRange(from, to)
+	if err != nil {
 		return nil, err
 	}
 	kargs := map[string]interface{}{"from": from, "to": to}
@@ -140,13 +138,11 @@ func (s *MeteringService) Attempts(from, to string, limit int, opts *UsageOption
 // The date must be strictly in the past: a day still in progress has no
 // complete final hour and the server refuses it.
 func (s *MeteringService) CollectDay(date string, opts *UsageOptions) (*model.CollectDayResponse, error) {
-	if !dateRe.MatchString(date) {
-		return nil, fmt.Errorf("date must be YYYY-MM-DD (UTC), got %q", date)
-	}
-	d, err := time.Parse("2006-01-02", date)
+	date, err := NormalizeDate(date)
 	if err != nil {
-		return nil, fmt.Errorf("invalid date %q: %w", date, err)
+		return nil, err
 	}
+	d, _ := time.Parse(dateLayout, date)
 	today := time.Now().UTC().Truncate(24 * time.Hour)
 	if !d.Before(today) {
 		return nil, fmt.Errorf("date %s is not in the past; a day that has not finished cannot be closed", date)
@@ -187,7 +183,8 @@ func (s *MeteringService) SinkClassification() (*model.SinkClassification, error
 // reached appears with an Error and no days, and treating that as zero usage
 // under-bills the provider.
 func (s *MeteringService) GridUsage(from, to string, accounts []string, opts *UsageOptions) (*model.GridUsageResponse, error) {
-	if err := validateRange(from, to); err != nil {
+	from, to, err := normalizeRange(from, to)
+	if err != nil {
 		return nil, err
 	}
 	kargs := map[string]interface{}{"from": from, "to": to}

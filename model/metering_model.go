@@ -279,3 +279,16 @@ type GridUsageResponse struct {
 func (r *GridUsageResponse) Complete() bool {
 	return r != nil && r.Summary.Failed == 0
 }
+
+// DayIndex renders the day as a YYYYMMDD dayIndex, the form ingext uses in
+// index names, dump paths and the lake's @dayIndex field.
+func (d *UsageDay) DayIndex() string {
+	if d == nil {
+		return ""
+	}
+	s := d.BillingDate
+	if len(s) == 10 && s[4] == '-' && s[7] == '-' {
+		return s[0:4] + s[5:7] + s[8:10]
+	}
+	return s
+}

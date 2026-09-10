@@ -22,6 +22,9 @@ var (
 	usageDate        string
 	usageAccounts    []string
 	usageLimit       int
+	usageMonth       string
+	usageDayIndex    string
+	usagePartial     bool
 )
 
 var usageCmd = &cobra.Command{
@@ -44,17 +47,51 @@ func defaultRange() (string, string) {
 	return end.AddDate(0, 0, -29).Format("2006-01-02"), end.Format("2006-01-02")
 }
 
-func resolveRange() (string, string) {
-	if usageFrom == "" || usageTo == "" {
-		f, t := defaultRange()
-		if usageFrom == "" {
-			usageFrom = f
-		}
-		if usageTo == "" {
-			usageTo = t
+// resolveRange turns whichever selector the user gave into a from/to pair.
+//
+// Precedence is most-specific-first: a single day beats a month, a month beats
+// an explicit range, and an explicit range beats the default. Conflicting
+// selectors are an error rather than a silent choice -- someone who passes both
+// --month and --from has a different report in mind than either alone.
+func resolveRange() (string, string, error) {
+	given := 0
+	for _, set := range []bool{usageDayIndex != "", usageMonth != "", usageFrom != "" || usageTo != ""} {
+		if set {
+			given++
 		}
 	}
-	return usageFrom, usageTo
+	if given > 1 {
+		return "", "", fmt.Errorf("use only one of --day-index, --month, or --from/--to")
+	}
+
+	switch {
+	case usageDayIndex != "":
+		d, err := fluencyAPI.NormalizeDate(usageDayIndex)
+		if err != nil {
+			return "", "", err
+		}
+		return d, d, nil
+
+	case usageMonth != "":
+		from, to, partial, err := fluencyAPI.MonthRange(usageMonth)
+		if err != nil {
+			return "", "", err
+		}
+		usagePartial = partial
+		return from, to, nil
+
+	case usageFrom != "" && usageTo != "":
+		return usageFrom, usageTo, nil
+
+	case usageFrom != "" || usageTo != "":
+		// Half a range is almost always a typo, and guessing the other end
+		// produces a report that looks deliberate.
+		return "", "", fmt.Errorf("--from and --to must be given together (or use --month / --day-index)")
+
+	default:
+		f, t := defaultRange()
+		return f, t, nil
+	}
 }
 
 func emitJSON(v interface{}) error {
@@ -83,7 +120,10 @@ var usageListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Show the daily usage ledger",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		from, to := resolveRange()
+		from, to, err := resolveRange()
+		if err != nil {
+			return err
+		}
 		resp, err := AppAPI.DailyUsage(from, to, usageOpts())
 		if err != nil {
 			return err
@@ -99,19 +139,23 @@ var usageListCmd = &cobra.Command{
 			return fmt.Errorf("usage ledger unavailable")
 		}
 		fmt.Printf("account %s   %s .. %s   (GB, decimal)\n", resp.Account, resp.From, resp.To)
+		if usagePartial {
+			// Say so rather than let a short month read as a quiet month.
+			fmt.Printf("month %s is still in progress; range ends yesterday\n", usageMonth)
+		}
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "DATE\tSTATE\tSTATUS\tEVENTWATCH\tPROCESSED\tDELETED\tINPUT\tLAKE-IN\tUSERS")
+		fmt.Fprintln(w, "DAYINDEX\tDATE\tSTATE\tSTATUS\tEVENTWATCH\tPROCESSED\tDELETED\tINPUT\tLAKE-IN\tUSERS")
 		for _, d := range resp.Days {
 			if d.State == model.DayStateMissing || d.State == model.DayStateInProgress {
-				fmt.Fprintf(w, "%s\t%s\t\t\t\t\t\t\t\n", d.BillingDate, d.State)
+				fmt.Fprintf(w, "%s\t%s\t%s\t\t\t\t\t\t\t\n", d.DayIndex(), d.BillingDate, d.State)
 				continue
 			}
 			var users []string
 			for _, u := range d.PaidUsers {
 				users = append(users, fmt.Sprintf("%s=%d", u.Provider, u.Quantity))
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-				d.BillingDate, d.State, d.Status,
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				d.DayIndex(), d.BillingDate, d.State, d.Status,
 				gb(d, model.MeterEventwatch), gb(d, model.MeterProcessed),
 				gb(d, model.MeterDeleted), gb(d, model.MeterInput),
 				gb(d, model.MeterLakeIngress), strings.Join(users, ","))
@@ -134,7 +178,10 @@ var usageAttemptsCmd = &cobra.Command{
 		"declined to run. This is what separates 'this day has no data' from\n" +
 		"'nobody ever looked'.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		from, to := resolveRange()
+		from, to, err := resolveRange()
+		if err != nil {
+			return err
+		}
 		resp, err := AppAPI.UsageAttempts(from, to, usageLimit, usageOpts())
 		if err != nil {
 			return err
@@ -150,10 +197,11 @@ var usageAttemptsCmd = &cobra.Command{
 			return nil
 		}
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "DATE\tFAMILY\tPROVIDER\tSTATUS\tMETHOD\tERROR\tACTOR")
+		fmt.Fprintln(w, "DAYINDEX\tDATE\tFAMILY\tPROVIDER\tSTATUS\tMETHOD\tERROR\tACTOR")
 		for _, a := range resp.Attempts {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-				a.BillingDate, a.MeterFamily, a.Provider, a.Status, a.Method, a.ErrorCode, a.Actor)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				fluencyAPI.DayIndex(a.BillingDate), a.BillingDate, a.MeterFamily, a.Provider,
+				a.Status, a.Method, a.ErrorCode, a.Actor)
 		}
 		return w.Flush()
 	},
@@ -168,10 +216,14 @@ var usageCollectCmd = &cobra.Command{
 		"closed=false is a normal outcome: some meter did not resolve, so nothing\n" +
 		"was written. Run 'usage attempts' to see which meter and why.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if usageDate == "" {
-			return fmt.Errorf("--date is required (YYYY-MM-DD, UTC, in the past)")
+		date := usageDate
+		if date == "" {
+			date = usageDayIndex
 		}
-		resp, err := AppAPI.CollectUsageDay(usageDate, usageOpts())
+		if date == "" {
+			return fmt.Errorf("--date or --day-index is required (YYYY-MM-DD or YYYYMMDD, UTC, in the past)")
+		}
+		resp, err := AppAPI.CollectUsageDay(date, usageOpts())
 		if err != nil {
 			return err
 		}
@@ -226,7 +278,10 @@ var usageGridCmd = &cobra.Command{
 	Long: "Issue against a PROVIDER site. --account narrows the set and can only\n" +
 		"narrow it; anything out of scope is reported, never silently dropped.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		from, to := resolveRange()
+		from, to, err := resolveRange()
+		if err != nil {
+			return err
+		}
 		resp, err := AppAPI.GridUsage(from, to, usageAccounts, usageOpts())
 		if err != nil {
 			return err
@@ -235,6 +290,9 @@ var usageGridCmd = &cobra.Command{
 			return emitJSON(resp)
 		}
 		fmt.Printf("grid %s   %s .. %s\n", resp.Grid, resp.From, resp.To)
+		if usagePartial {
+			fmt.Printf("month %s is still in progress; range ends yesterday\n", usageMonth)
+		}
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 		fmt.Fprintln(w, "ACCOUNT\tDAYS\tEVENTWATCH-GB\tNOTE")
 		for _, a := range resp.Accounts {
@@ -282,8 +340,14 @@ func init() {
 	usageCmd.AddCommand(usageListCmd, usageAttemptsCmd, usageCollectCmd, usageSinksCmd, usageGridCmd)
 
 	for _, c := range []*cobra.Command{usageListCmd, usageAttemptsCmd, usageGridCmd} {
-		c.Flags().StringVar(&usageFrom, "from", "", "Start date YYYY-MM-DD UTC (default: 30 days before --to)")
-		c.Flags().StringVar(&usageTo, "to", "", "End date YYYY-MM-DD UTC, inclusive (default: yesterday)")
+		c.Flags().StringVar(&usageFrom, "from", "",
+			"Start date, YYYY-MM-DD or YYYYMMDD dayIndex (UTC); use with --to")
+		c.Flags().StringVar(&usageTo, "to", "",
+			"End date, inclusive, YYYY-MM-DD or YYYYMMDD dayIndex (UTC)")
+		c.Flags().StringVar(&usageMonth, "month", "",
+			"Whole month, YYYY-MM or YYYYMM (UTC); a month in progress ends yesterday")
+		c.Flags().StringVar(&usageDayIndex, "day-index", "",
+			"A single day, YYYYMMDD or YYYY-MM-DD (UTC)")
 	}
 	for _, c := range []*cobra.Command{usageListCmd, usageAttemptsCmd, usageCollectCmd, usageSinksCmd, usageGridCmd} {
 		c.Flags().StringVar(&usageTenantKey, "tenant-key", "", "MSSP sub-customer (always empty today)")
@@ -294,7 +358,10 @@ func init() {
 			"Include today's provisional row (never billable)")
 	}
 	usageAttemptsCmd.Flags().IntVar(&usageLimit, "limit", 0, "Maximum attempts to return")
-	usageCollectCmd.Flags().StringVar(&usageDate, "date", "", "Day to collect, YYYY-MM-DD UTC (required)")
+	usageCollectCmd.Flags().StringVar(&usageDate, "date", "",
+		"Day to collect, YYYY-MM-DD or YYYYMMDD dayIndex (UTC, must be in the past)")
+	usageCollectCmd.Flags().StringVar(&usageDayIndex, "day-index", "",
+		"Alias for --date, as a YYYYMMDD dayIndex")
 	usageGridCmd.Flags().StringSliceVar(&usageAccounts, "account", nil,
 		"Limit to these tenants (repeatable); can only narrow the caller's scope")
 }

@@ -523,16 +523,29 @@ and records it in the shared Postgres. Quantities and evidence only — no price
 no SKUs, nothing from Stripe.
 
 ```bash
-ingext usage list --from 2026-09-01 --to 2026-09-30
+ingext usage list --month 2026-09                        # a whole month
+ingext usage list --day-index 20260909                   # one day
+ingext usage list --from 20260901 --to 20260909          # a dayIndex range
+ingext usage list --from 2026-09-01 --to 2026-09-09      # the same range
 ingext usage list --include-open --json
-ingext usage attempts --from 2026-09-09 --to 2026-09-09
-ingext usage collect --date 2026-09-09
+ingext usage attempts --day-index 20260909
+ingext usage collect --day-index 20260909
 ingext usage sinks
-ingext usage grid --from 2026-09-01 --to 2026-09-30      # provider site only
+ingext usage grid --month 2026-09                        # provider site only
 ```
 
-`list` defaults to the last 30 whole UTC days ending yesterday; today is
-excluded because it has not finished and is never billable.
+Days may be given as `YYYY-MM-DD` or as a `YYYYMMDD` **dayIndex** — the form
+that appears in index names, dump paths and the lake's `@dayIndex` — and the two
+may be mixed within one range. Months are `YYYY-MM` or `YYYYMM`. Dates are
+parsed rather than pattern-matched, so `20260230` is rejected here instead of
+becoming a range the server answers with a confusingly empty ledger.
+
+Use only one of `--day-index`, `--month`, or `--from`/`--to`: passing two is an
+error rather than a silent choice between them. With none of them, `list`
+defaults to the last 30 whole UTC days ending yesterday.
+
+A month still in progress ends at **yesterday**, not today, and the output says
+so — today has not finished and is never billable.
 
 **A meter that was not measured prints as `-`, and that is not zero.** It means
 the collection did not resolve for that day, so any total including it is a

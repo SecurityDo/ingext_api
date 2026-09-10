@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/SecurityDo/ingext_api/client"
 	fsb "github.com/SecurityDo/ingext_api/fsb"
@@ -207,5 +208,107 @@ func TestGridUsageCompleteWhenNothingFailed(t *testing.T) {
 	}
 	if !got.Complete() {
 		t.Fatal("a fan-out with no failures must report Complete")
+	}
+}
+
+// dayIndex (YYYYMMDD) is how operators address a day -- it is what appears in
+// index names, dump paths and the lake's @dayIndex -- so both forms are
+// accepted everywhere a date is taken.
+func TestNormalizeDateAcceptsBothForms(t *testing.T) {
+	for _, c := range []struct{ in, want string }{
+		{"2026-09-09", "2026-09-09"},
+		{"20260909", "2026-09-09"},
+		{"  20260909  ", "2026-09-09"},
+	} {
+		got, err := NormalizeDate(c.in)
+		if err != nil || got != c.want {
+			t.Errorf("NormalizeDate(%q) = %q, %v; want %q", c.in, got, err, c.want)
+		}
+	}
+	// Parsed, not pattern-matched: an impossible date must not become a range
+	// the server answers with a confusingly empty ledger.
+	for _, bad := range []string{"2026-02-30", "20260230", "2026-13-01", "20261301", "", "26-09-09", "2026/09/09"} {
+		if _, err := NormalizeDate(bad); err == nil {
+			t.Errorf("NormalizeDate(%q) should have failed", bad)
+		}
+	}
+}
+
+func TestDayIndexRendering(t *testing.T) {
+	if got := DayIndex("2026-09-09"); got != "20260909" {
+		t.Fatalf("DayIndex = %q", got)
+	}
+	d := &model.UsageDay{BillingDate: "2026-09-09"}
+	if got := d.DayIndex(); got != "20260909" {
+		t.Fatalf("UsageDay.DayIndex = %q", got)
+	}
+	var nilDay *model.UsageDay
+	if got := nilDay.DayIndex(); got != "" {
+		t.Fatalf("nil day DayIndex = %q", got)
+	}
+}
+
+func TestMonthRange(t *testing.T) {
+	// A month wholly in the past expands to all of it, both spellings.
+	for _, m := range []string{"2020-02", "202002"} {
+		from, to, partial, err := MonthRange(m)
+		if err != nil {
+			t.Fatalf("MonthRange(%q): %v", m, err)
+		}
+		if from != "2020-02-01" || to != "2020-02-29" { // leap year, checked deliberately
+			t.Fatalf("MonthRange(%q) = %s..%s", m, from, to)
+		}
+		if partial {
+			t.Fatalf("MonthRange(%q) reported partial for a finished month", m)
+		}
+	}
+
+	// The current month is clamped to yesterday and says so -- today has not
+	// finished and is never billable.
+	now := time.Now().UTC()
+	from, to, partial, err := MonthRange(now.Format("2006-01"))
+	if err == nil {
+		if !partial && now.Day() > 1 {
+			t.Fatalf("current month %s..%s should report partial", from, to)
+		}
+		yesterday := now.AddDate(0, 0, -1).Format("2006-01-02")
+		if partial && to != yesterday {
+			t.Fatalf("current month ends %s, want yesterday %s", to, yesterday)
+		}
+	}
+
+	// A future month has no finished day at all, which is an error rather than
+	// an empty range.
+	if _, _, _, err := MonthRange("2099-01"); err == nil {
+		t.Fatal("a future month should be refused")
+	}
+	for _, bad := range []string{"2026-13", "202613", "2026", "2026-09-01", ""} {
+		if _, _, _, err := MonthRange(bad); err == nil {
+			t.Errorf("MonthRange(%q) should have failed", bad)
+		}
+	}
+}
+
+// A range may mix the two forms: pasting a dayIndex from an index name next to
+// a hand-typed date should just work.
+func TestRangeAcceptsMixedForms(t *testing.T) {
+	var kargs map[string]interface{}
+	svc := newMeteringServiceForTest(t, model.UsageResponse{StoreAvailable: true}, nil, &kargs)
+	if _, err := svc.DailyUsage("20260901", "2026-09-09", nil); err != nil {
+		t.Fatalf("mixed forms: %v", err)
+	}
+	if kargs["from"] != "2026-09-01" || kargs["to"] != "2026-09-09" {
+		t.Fatalf("kargs = %+v; both ends must reach the wire normalised", kargs)
+	}
+}
+
+func TestCollectDayAcceptsDayIndex(t *testing.T) {
+	var kargs map[string]interface{}
+	svc := newMeteringServiceForTest(t, model.CollectDayResponse{Closed: true}, nil, &kargs)
+	if _, err := svc.CollectDay("20200101", nil); err != nil {
+		t.Fatalf("CollectDay with dayIndex: %v", err)
+	}
+	if kargs["date"] != "2020-01-01" {
+		t.Fatalf("date = %v, want the normalised form", kargs["date"])
 	}
 }
