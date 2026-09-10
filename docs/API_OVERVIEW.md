@@ -132,3 +132,28 @@ type GenericDaoRequest[T any] struct {
 ** add — add an email notification endpoint (kargs: name, integration, action, email{to, cc})
 ** delete — delete a notification endpoint (kargs: id)
 
+### Billing usage (metering)
+
+The account measures its own usage once a day from its cluster's VictoriaMetrics
+and records it in the shared Postgres. Quantities and evidence only: ingext
+stores no prices, no SKUs and nothing from Stripe.
+
+* metering_daily_list (kargs: from, to, tenantKey?, includeOpen?) — the daily ledger for [from, to] inclusive, YYYY-MM-DD UTC
+** A meter that was not measured is **null, and null is not zero**. Treating it as 0 turns "this tenant could not be measured" into "this tenant used nothing".
+** An elapsed day with no row is returned with state "missing" rather than omitted, so a short array cannot be mistaken for a short month. state is closed | open | missing | in_progress.
+** storeAvailable false means the ledger was unreachable; days will be empty and that emptiness says NOTHING about usage. Never sum such a response.
+** Only state closed with status final is billable. status incomplete is written when a day aged out of the metrics retention window without resolving — it records a permanent gap and is never billable.
+** Eight meters: eventwatch_bytes, processed_bytes, deleted_bytes, input_bytes, platform_datalake_bytes, lake_ingress_bytes, lake_search_bytes, lake_realtime_search_bytes.
+** platform_datalake_bytes and lake_ingress_bytes measure different things and WILL disagree — the first is what the datalake sink emitted, the second what the lake actually ingested including data arriving by other paths (measured ~12x apart on a live tenant). Neither is a broken copy of the other.
+** paidUsers carries one entry per integrated provider. A provider that is not integrated produces NO entry, which is different from an entry of 0.
+* metering_attempts (kargs: from, to, tenantKey?, limit?) — every collection try, including failures and skips
+** This is what separates "this tenant-day has no data" from "nobody ever looked". Grep errorCode to find every tenant-day sharing one cause.
+* metering_collect_day (kargs: date, tenantKey?) — collect and close one past UTC day on demand
+** Cannot rewrite a day that already closed; the ledger refuses it. closed false is a normal outcome meaning a meter did not resolve, and nothing was written.
+* metering_sink_classification (kargs: none) — how the collector currently sorts datasinks into meters
+** processed_bytes is the one meter whose value depends on a judgement about the topology rather than a metric label, so check this first when that number looks wrong.
+** ambiguous lists sinks whose meter differs between the platform's resident and job execution modes. They are counted as eventwatch, which under-counts by at most that sink rather than double-billing it.
+* grid_metering_daily_list (api/grid; kargs: from, to, accounts?, tenantKey?, includeOpen?) — the ledger for every tenant of a provider, in one call
+** Provider-level: issue against a provider site, never a tenant. Scoped by the caller's allowed sites, and each per-tenant call is independently policy-checked.
+** accounts can only narrow the caller's scope. Anything out of scope comes back in outOfScope rather than being silently dropped.
+** A tenant that could not be reached appears with an error and no days. summary.failed non-zero means the document is INCOMPLETE and any provider total from it is a lower bound.

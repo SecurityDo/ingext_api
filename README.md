@@ -515,3 +515,41 @@ go mod tidy
 ## License
 
 [MIT](https://www.google.com/search?q=LICENSE)
+
+## Billing usage (metering)
+
+An account measures its own usage once a day from its cluster's VictoriaMetrics
+and records it in the shared Postgres. Quantities and evidence only — no prices,
+no SKUs, nothing from Stripe.
+
+```bash
+ingext usage list --from 2026-09-01 --to 2026-09-30
+ingext usage list --include-open --json
+ingext usage attempts --from 2026-09-09 --to 2026-09-09
+ingext usage collect --date 2026-09-09
+ingext usage sinks
+ingext usage grid --from 2026-09-01 --to 2026-09-30      # provider site only
+```
+
+`list` defaults to the last 30 whole UTC days ending yesterday; today is
+excluded because it has not finished and is never billable.
+
+**A meter that was not measured prints as `-`, and that is not zero.** It means
+the collection did not resolve for that day, so any total including it is a
+lower bound — which is why `list` prints the number of unmeasured days after the
+total, and why `model.UsageDay.Bytes` returns `(value, measured bool)` rather
+than a bare int. Elapsed days with no row appear as `missing` rather than being
+omitted, so a short table cannot be mistaken for a short month.
+
+Only a `closed`/`final` day is billable. `incomplete` is written when a day aged
+out of the metrics retention window without ever resolving; it records a
+permanent gap.
+
+Two datalake meters are reported and they legitimately disagree:
+`platform_datalake_bytes` is what the datalake sink emitted,
+`lake_ingress_bytes` is what the lake actually ingested — including data
+arriving by paths that are not that sink. Measured ~12x apart on a live tenant.
+
+`usage grid` runs against a **provider** site and fans out over its tenants. A
+tenant that could not be reached is reported as an error, never as a tenant with
+no usage, and the summary says whether the document is complete.
