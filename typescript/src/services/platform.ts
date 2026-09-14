@@ -392,6 +392,24 @@ export class PlatformService {
     return res.plugins ?? [];
   }
 
+  /**
+   * Every FPL action script the platform knows about (processors of type
+   * "fpl_action"). The ones an EndpointConfig can name in its `action` field
+   * are those whose `actionConfig.target` is "Platform Notification" and whose
+   * `actionConfig.integration` matches the endpoint's.
+   *
+   * The endpoint takes no kargs, and the order it returns actions in is not
+   * stable between calls.
+   */
+  async listActions(): Promise<FPLScript[]> {
+    const res = await this.client.call<{ actions: FPLScript[] }>(
+      DS,
+      "platform_list_actions",
+      null,
+    );
+    return res.actions ?? [];
+  }
+
   async listConfigs(): Promise<ListConfigsResponse> {
     return await this.client.call<ListConfigsResponse>(
       DS,

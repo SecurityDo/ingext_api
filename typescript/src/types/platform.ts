@@ -276,8 +276,26 @@ export interface FPLScript {
   name: string;
   type: string;
   tags?: Tag[];
+  /**
+   * Set on scripts of type "fpl_action" and only filled in by
+   * platform_list_actions.
+   */
+  actionConfig?: FplActionConfig;
   description: string;
+  scriptLang?: string;
   scriptText: string;
   createdOn: string;
   updatedOn: string;
+}
+
+/**
+ * What an "fpl_action" script is wired to. `target` is the subsystem that
+ * invokes it ("Platform Notification" for the actions a notification endpoint
+ * can name) and `integration` the endpoint kind it expects ("Email", "Slack"),
+ * which is what makes an action usable by an EndpointConfig of the same
+ * integration.
+ */
+export interface FplActionConfig {
+  target?: string;
+  integration?: string;
 }

@@ -116,7 +116,12 @@ const office = await ingext.resource.search("office365User", "_all_");
 const purged = await ingext.resource.dumpDelete("office365"); // dump folders removed
 
 // notification
-const epID = await ingext.notification.addEmail("ops", "alert", ["a@x"], []);
+// An endpoint's action must name an fpl_action of a matching integration.
+const emailActions = await ingext.notification.listActions("Email");
+const epID = await ingext.notification.addEmail("ops", emailActions[0]!.name, ["a@x"], []);
+const ep = await ingext.notification.get("ops"); // throws if there is no such endpoint
+// update replaces the whole entry and upserts, so edit what get returned
+await ingext.notification.update({ ...ep!, email: { to: ["a@x", "b@x"] } });
 
 // application
 const tplID = await ingext.application.addAppTemplate(yamlContent);

@@ -646,6 +646,16 @@ type GenericDaoListResponse[T any] struct {
 	Entries []*T `json:"entries"`
 }
 
+type GenericDaoEntryResponse[T any] struct {
+	Entry *T `json:"entry"`
+}
+
+// ListActionsResponse is the platform_list_actions payload. The endpoint keys
+// its result on "actions", not the "entries" the dao endpoints use.
+type ListActionsResponse struct {
+	Actions []*model.FPLScript `json:"actions"`
+}
+
 func (s *PlatformService) GetPodRole() (role, arn string, err error) {
 	var resp struct {
 		Role string `json:"role"`
@@ -746,6 +756,21 @@ func (s *PlatformService) ListPlugins() ([]string, error) {
 		return nil, err
 	}
 	return resp.Plugins, nil
+}
+
+// ListActions returns every FPL action script the platform knows about. These
+// are processors of type "fpl_action"; the ones an EndpointConfig can name in
+// its Action field are those whose ActionConfig.Target is "Platform
+// Notification" and whose ActionConfig.Integration matches the endpoint's.
+//
+// The endpoint takes no kargs, and the order it returns actions in is not
+// stable between calls.
+func (s *PlatformService) ListActions() ([]*model.FPLScript, error) {
+	var resp ListActionsResponse
+	if err := s.call("platform_list_actions", nil, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Actions, nil
 }
 
 // ListConfigs returns the current platform configuration snapshot.

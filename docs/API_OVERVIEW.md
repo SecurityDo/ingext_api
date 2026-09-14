@@ -127,10 +127,21 @@ type GenericDaoRequest[T any] struct {
 
 == notification APIs: (with prefix 'api/ds')
 
-* platform_notification_endpoint_dao (dao-style: action = list | add | delete)
-** list — list all notification endpoints (EndpointConfig)
-** add — add an email notification endpoint (kargs: name, integration, action, email{to, cc})
-** delete — delete a notification endpoint (kargs: id)
+* platform_notification_endpoint_dao (dao-style: action = list | get | add | update | delete)
+** An endpoint pairs an integration ("Email", "Slack") with the name of an fpl_action script in its action field, plus the per-integration config that script reads as its `config` argument. Use platform_list_actions to find the action names, and match the action's integration to the endpoint's.
+** Endpoints are keyed by **name**: get, update and delete all take the name in args.id. "add" answers "{}" with **no id field**, so there is no id to keep.
+** list — list all notification endpoints (EndpointConfig), under "entries"
+** get — one endpoint by name (kargs: args.id), under "entry". A name the dao does not hold is an **error**, "export not found: <name>", not an empty result.
+** add — add an endpoint (kargs: args.entry = {name, integration, action, email{to, cc} | slack{channel, channels, integrationName}}). Not an upsert: a name already stored is refused with "duplicate endpoint".
+** update — replace an endpoint (kargs: args.id = name, args.entry). Two traps: it takes the whole entry, not a patch, so a field left out is stored empty (read the endpoint with get and modify that); and it **is an upsert** — a name the dao does not hold is created rather than refused, so a typo in the name silently adds a second endpoint instead of editing the one meant.
+** delete — delete a notification endpoint (kargs: args.id = name). Deleting a name the dao does not hold fails with "unknown export".
+** Every action but list needs args: an unknown action value fails with "kargs.args field missing" rather than naming the action.
+
+* platform_list_actions (no kargs) — the FPL action scripts the platform knows about, under "actions"
+** Entries are FPLScript (the platform_processor_dao type) of type "fpl_action", with the actionConfig field that dao never fills in: actionConfig.target is the subsystem that invokes the action and actionConfig.integration the endpoint kind it expects.
+** The ones a notification endpoint can name are those with target "Platform Notification"; filter further on integration to match the endpoint. The endpoint's name says nothing about the target, so filter rather than treat everything it returns as a notification action.
+** The order actions come back in is not stable between calls.
+** Each entry carries its whole scriptText, so the response is large relative to what a name-and-integration lookup needs.
 
 ### Billing usage (metering)
 

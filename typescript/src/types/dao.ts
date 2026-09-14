@@ -18,6 +18,10 @@ export interface GenericDaoListResponse<T> {
   entries: T[];
 }
 
+export interface GenericDaoEntryResponse<T> {
+  entry: T | null;
+}
+
 /** Filter and facet shapes used by `SimpleSearchOption` (eventwatch et al). */
 export interface SimpleFacetEntry {
   field: string;

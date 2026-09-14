@@ -228,6 +228,114 @@ describe("NotificationService", () => {
       },
     });
   });
+
+  it("addSlack sends the channels array and mirrors a lone channel", async () => {
+    const { ingext, cap } = makeIngext(() => ({ id: "ep-2" }));
+    const id = await ingext.notification.addSlack("soc", "Slack_Action", "corp-slack", ["#soc"]);
+    expect(id).toBe("ep-2");
+    expect(cap.body).toMatchObject({
+      function: "platform_notification_endpoint_dao",
+      kargs: {
+        action: "add",
+        args: {
+          entry: {
+            name: "soc",
+            integration: "Slack",
+            action: "Slack_Action",
+            slack: { integrationName: "corp-slack", channels: ["#soc"], channel: "#soc" },
+          },
+        },
+      },
+    });
+  });
+
+  it("addSlack leaves channel unset when several channels are given", async () => {
+    const { ingext, cap } = makeIngext(() => ({ id: "ep-3" }));
+    await ingext.notification.addSlack("soc", "Slack_Action", "corp-slack", ["#soc", "#ops"]);
+    const entry = (cap.body as { kargs: { args: { entry: { slack: Record<string, unknown> } } } })
+      .kargs.args.entry;
+    expect(entry.slack.channels).toEqual(["#soc", "#ops"]);
+    expect(entry.slack).not.toHaveProperty("channel");
+  });
+
+  it("get unwraps the entry and update sends the name as the id", async () => {
+    const stored = {
+      name: "ops",
+      integration: "Email",
+      action: "Generic_Email_Action",
+      email: { to: ["a@x"] },
+    };
+    const { ingext, cap } = makeIngext(() => ({ entry: stored }));
+    const entry = await ingext.notification.get("ops");
+    expect(cap.body).toMatchObject({ kargs: { action: "get", args: { id: "ops" } } });
+    expect(entry).toEqual(stored);
+
+    await ingext.notification.update({ ...stored, email: { to: ["b@x"] } });
+    expect(cap.body).toMatchObject({
+      kargs: { action: "update", args: { id: "ops", entry: { email: { to: ["b@x"] } } } },
+    });
+  });
+
+  it("get returns null only when the dao answers with a null entry", async () => {
+    const { ingext } = makeIngext(() => ({ entry: null }));
+    expect(await ingext.notification.get("nope")).toBeNull();
+  });
+
+  it("get throws on a name the dao does not hold", async () => {
+    // The server reports a missing endpoint as an ERROR verdict, not an empty
+    // result, so callers cannot treat "not found" as a null entry.
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({ verdict: "ERROR", error: "export not found: nope" }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+    ) as unknown as typeof globalThis.fetch;
+    const ingext = new Ingext({ url: "https://x.example", token: "t", fetch: fetchImpl });
+    await expect(ingext.notification.get("nope")).rejects.toThrow(/export not found/);
+  });
+
+  it("add returns an empty string id, since the dao answers with {}", async () => {
+    const { ingext } = makeIngext(() => ({}));
+    expect(await ingext.notification.addEmail("ops", "Generic_Email_Action", ["a@x"], [])).toBe("");
+  });
+
+  it("listActions keeps only Platform Notification actions of the asked integration", async () => {
+    const action = (name: string, target: string, integration: string) => ({
+      id: 1,
+      group: "System",
+      name,
+      type: "fpl_action",
+      actionConfig: { target, integration },
+      description: "",
+      scriptText: "",
+      createdOn: "",
+      updatedOn: "",
+    });
+    const { ingext, cap } = makeIngext(() => ({
+      actions: [
+        action("Generic_Email_Action", "Platform Notification", "Email"),
+        action("Slack_Action", "Platform Notification", "Slack"),
+        action("Ticket_Action", "Case Management", "Jira"),
+      ],
+    }));
+
+    const all = await ingext.notification.listActions();
+    expect(cap.url).toBe("https://x.example/api/ds/platform_list_actions");
+    expect(all.map((a) => a.name)).toEqual(["Generic_Email_Action", "Slack_Action"]);
+
+    const email = await ingext.notification.listActions("Email");
+    expect(email.map((a) => a.name)).toEqual(["Generic_Email_Action"]);
+  });
+});
+
+describe("PlatformService actions", () => {
+  it("listActions posts no kargs and unwraps the actions array", async () => {
+    const { ingext, cap } = makeIngext(() => ({ actions: [] }));
+    const actions = await ingext.platform.listActions();
+    expect(cap.url).toBe("https://x.example/api/ds/platform_list_actions");
+    expect(actions).toEqual([]);
+  });
 });
 
 describe("RepoService", () => {

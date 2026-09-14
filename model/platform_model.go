@@ -387,18 +387,30 @@ type FPLScript struct {
 	Tags []*Tag `json:"tags,omitempty"`
 
 	//Channel      string           `json:"channel,omitempty"`
-	//ActionConfig *FplActionConfig `json:"actionConfig,omitempty"`
+	// ActionConfig is set on scripts of Type "fpl_action" and says what the
+	// action drives; platform_list_actions is the only endpoint that fills it in.
+	ActionConfig *FplActionConfig `json:"actionConfig,omitempty"`
 	//RuleConfig   *FplRuleConfig   `json:"ruleConfig,omitempty"`
 
 	//Arguments    []*fplmodel.ProgramArgument      `json:"arguments,omitempty"`
 	//ReportConfig *fplreportModel.TaskReportConfig `json:"reportConfig,omitempty"`
 
-	Description string `json:"description"`
-	//ScriptLang  string    `json:"scriptLang"`
-	ScriptText string    `json:"scriptText"`
-	CreatedOn  time.Time `json:"createdOn"`
-	UpdatedOn  time.Time `json:"updatedOn"`
+	Description string    `json:"description"`
+	ScriptLang  string    `json:"scriptLang,omitempty"`
+	ScriptText  string    `json:"scriptText"`
+	CreatedOn   time.Time `json:"createdOn"`
+	UpdatedOn   time.Time `json:"updatedOn"`
 
 	//Tenant string `json:"tenant,omitempty"`
 	//Source string `json:"source,omitempty"`
+}
+
+// FplActionConfig describes what an "fpl_action" script is wired to. Target is
+// the subsystem that invokes it ("Platform Notification" for the actions a
+// notification endpoint can name) and Integration the endpoint kind it expects
+// ("Email", "Slack", ...), which is what makes an action usable by an
+// EndpointConfig of the same integration.
+type FplActionConfig struct {
+	Target      string `json:"target,omitempty"`
+	Integration string `json:"integration,omitempty"`
 }
