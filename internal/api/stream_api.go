@@ -261,3 +261,18 @@ func (c *Client) DeleteRouter(routerID string) (err error) {
 	}
 	return nil
 }
+
+// ReloadDataSource restarts one data source. For a plugin source this re-forks
+// the plugin, which is how a newly published binary is picked up.
+func (c *Client) ReloadDataSource(dataSourceID string) (err error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	err = platformService.SourceReload(dataSourceID)
+
+	if err != nil {
+		c.Logger.Error("failed to reload data source", "error", err)
+		return fmt.Errorf("failed to reload data source: %s", err.Error())
+	}
+	return nil
+}

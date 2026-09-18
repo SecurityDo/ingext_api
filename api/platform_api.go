@@ -1262,7 +1262,16 @@ func (s *PlatformService) GetComponentInfo(id string) (*model.ComponentInfo, err
 	return &resp, nil
 }
 
-// SourceReload triggers a data source reload operation.
+// SourceReload restarts a data source: the manager stops whatever the source is
+// running and starts it again.
+//
+// For a plugin source this is what re-forks the plugin, and therefore what makes
+// a newly published binary take effect -- the fork re-resolves the pinned tag's
+// digest and re-downloads when it has changed. Nothing short of this or a
+// platform-0 restart picks up a new build.
+//
+// The endpoint is platform_source_reload. There is no platform_datasource_reload:
+// that name answers "unknown function".
 func (s *PlatformService) SourceReload(id string) error {
 	req := &SourceReloadReq{DataSourceID: id}
 	return s.call("platform_source_reload", req, nil)

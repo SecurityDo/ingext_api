@@ -303,7 +303,7 @@ var addSinkCmd = &cobra.Command{
 func init() {
 	RootCmd.AddCommand(streamCmd)
 	streamCmd.AddCommand(addSourceCmd, delSourceCmd, listSourceCmd, addSinkCmd, delSinkCmd, listSinkCmd, addRouterCmd, connectRouterCmd, connectSinkCmd, updatePipeProcessorCmd) // Add del/update similarly
-	streamCmd.AddCommand(listRouterCmd, addPipeCmd, delPipeCmd, delRouterCmd)
+	streamCmd.AddCommand(listRouterCmd, addPipeCmd, delPipeCmd, delRouterCmd, reloadSourceCmd)
 
 	addSourceCmd.Flags().StringVar(&sourceType, "source-type", "", "data source type: plugin, s3, hec, webhook ")
 	addSourceCmd.Flags().StringVar(&resourceName, "name", "", "Name")
@@ -344,6 +344,9 @@ func init() {
 
 	delRouterCmd.Flags().StringVar(&routerName, "router", "", "Router name or ID")
 	_ = delRouterCmd.MarkFlagRequired("router")
+
+	reloadSourceCmd.Flags().StringVar(&sourceID, "source", "", "Data source name or ID")
+	_ = reloadSourceCmd.MarkFlagRequired("source")
 
 	//addSinkCmd.Flags().StringVar(&integrationID, "integration-id", "", "Integration ID")
 
@@ -465,6 +468,58 @@ func resolveSinkIDs(refs []string) ([]string, error) {
 		ids = append(ids, found)
 	}
 	return ids, nil
+}
+
+// resolveSourceID accepts a data source id or name.
+func resolveSourceID(ref string) (string, string, error) {
+	if ref == "" {
+		return "", "", fmt.Errorf("--source is required (name or id)")
+	}
+	configs, err := AppAPI.ListConfigs()
+	if err != nil {
+		return "", "", err
+	}
+	for _, s := range configs.Sources {
+		if s != nil && (s.ID == ref || s.Name == ref) {
+			return s.ID, s.Name, nil
+		}
+	}
+	names := make([]string, 0, len(configs.Sources))
+	for _, s := range configs.Sources {
+		if s != nil {
+			names = append(names, s.Name)
+		}
+	}
+	sort.Strings(names)
+	return "", "", fmt.Errorf("no data source named or numbered %q; available sources: %s", ref, strings.Join(names, ", "))
+}
+
+var reloadSourceCmd = &cobra.Command{
+	Use:   "reload-source",
+	Short: "Restart a data source",
+	Long: `Restart a data source: the manager stops whatever the source is running and
+starts it again.
+
+For a plugin source this re-forks the plugin, which is how a newly published
+binary is picked up -- the fork re-resolves the pinned tag's digest and
+re-downloads when it has changed. Publishing an image is not a deploy on its
+own; without this the source keeps running the binary it started with until
+platform-0 restarts.
+
+  ingext stream reload-source --source Varonis-default
+
+--source takes a name or an id.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		id, name, err := resolveSourceID(sourceID)
+		if err != nil {
+			return err
+		}
+		if err := AppAPI.ReloadDataSource(id); err != nil {
+			return err
+		}
+		cmd.PrintErrf("Data source reloaded: %s (%s)\n", name, id)
+		return nil
+	},
 }
 
 var listRouterCmd = &cobra.Command{

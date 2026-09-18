@@ -104,6 +104,10 @@ type GenericDaoRequest[T any] struct {
 * platform_datasink_dao (dao-style: action = get | add | delete | list) — DataSinkConfig CRUD.
 ** A behavior-signal sink is type "redis" with redis.redis.queue = "queue:BehaviorSummary:EventQueue" and no datalake block; the datalake writer is the same type with queue "queue:LVDBService:JobQueue" plus redis.datalake / redis.datalakeIndex.
 * platform_datasource_dao (dao-style) — DataSourceConfig CRUD. platform_source_set_router (kargs: dataSourceID, routerID) connects one to a router.
+* platform_source_reload (kargs: dataSourceID) — restart one data source: the manager stops whatever it is running and starts it again.
+** For a PLUGIN source this is what re-forks the plugin, and so what makes a newly published binary take effect: the fork re-resolves the pinned tag's digest and re-downloads when it has changed. Publishing to the registry is not a deploy on its own — without a reload the source keeps running the binary it started with until platform-0 restarts.
+** The name is platform_source_reload. platform_datasource_reload answers "unknown function".
+** Siblings on the same request shape: platform_source_enable / platform_source_disable, platform_source_enable_job / platform_source_disable_job, platform_source_set_config, platform_source_set_receiver.
 * platform_processor_dao (dao-style: action = get | add | update | delete | list) — FPLScript CRUD.
 ** "get" reports a name it does not hold as an **error** ("processor not found: <name>"), not as an empty entry.
 
