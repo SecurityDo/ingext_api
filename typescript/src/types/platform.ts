@@ -149,9 +149,21 @@ export interface StreamPipeConfig {
   routerID: string;
   matchAll: boolean;
   selector?: string;
+  /**
+   * Modelled as a list, but a pipe carries exactly one processor. A chain is
+   * built as a second pipe that the first hands on to by returning "abort".
+   */
   processorNames: string[];
   channelID?: string;
   sinkIDs?: string[];
+  /**
+   * Evaluation order within a router: the application templates give a main
+   * pipe 1000 and a behavior pipe 2000. Omitting it stores 0, so a pipe created
+   * without it runs ahead of both -- unlike every app-installed pipe.
+   */
+  priority?: number;
+  /** Ownership tags ("application", "appInstance"), as the app installer sets. */
+  tags?: Tag[];
 }
 
 export interface DataLakeSinkConfig {

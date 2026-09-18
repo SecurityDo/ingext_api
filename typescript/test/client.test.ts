@@ -41,6 +41,62 @@ describe("IngextClient.call", () => {
     });
   });
 
+  it("appends ?gridaccount= when a grid account is set", async () => {
+    let url = "";
+    const fetchImpl = mockFetch((u) => {
+      url = u;
+      return new Response(JSON.stringify({ verdict: "OK", response: {} }), { status: 200 });
+    });
+
+    const client = new IngextClient({
+      url: "https://develop.app.ingext.io",
+      token: "tok",
+      gridAccount: "jet",
+      fetch: fetchImpl,
+    });
+
+    await client.call("api/ds", "platform_list_configs", {});
+    expect(url).toBe("https://develop.app.ingext.io/api/ds/platform_list_configs?gridaccount=jet");
+  });
+
+  it("setGridAccount switches and clears the tenant", async () => {
+    const urls: string[] = [];
+    const fetchImpl = mockFetch((u) => {
+      urls.push(u);
+      return new Response(JSON.stringify({ verdict: "OK", response: {} }), { status: 200 });
+    });
+
+    const client = new IngextClient({ url: "https://develop.app.ingext.io", fetch: fetchImpl });
+
+    await client.call("api/ds", "platform_list_configs", {});
+    client.setGridAccount("titan");
+    expect(client.getGridAccount()).toBe("titan");
+    await client.call("api/ds", "platform_list_configs", {});
+    client.setGridAccount("");
+    await client.call("api/ds", "platform_list_configs", {});
+
+    expect(urls[0]).toBe("https://develop.app.ingext.io/api/ds/platform_list_configs");
+    expect(urls[1]).toBe("https://develop.app.ingext.io/api/ds/platform_list_configs?gridaccount=titan");
+    expect(urls[2]).toBe("https://develop.app.ingext.io/api/ds/platform_list_configs");
+  });
+
+  it("url-encodes a grid account name", async () => {
+    let url = "";
+    const fetchImpl = mockFetch((u) => {
+      url = u;
+      return new Response(JSON.stringify({ verdict: "OK", response: {} }), { status: 200 });
+    });
+
+    const client = new IngextClient({
+      url: "https://develop.app.ingext.io",
+      gridAccount: "acc name/1",
+      fetch: fetchImpl,
+    });
+
+    await client.call("api/ds", "platform_list_configs", {});
+    expect(url).toBe("https://develop.app.ingext.io/api/ds/platform_list_configs?gridaccount=acc%20name%2F1");
+  });
+
   it("strips trailing slashes from base url", async () => {
     let url = "";
     const fetchImpl = mockFetch((u) => {

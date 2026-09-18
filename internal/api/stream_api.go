@@ -196,3 +196,68 @@ func (c *Client) AddPipe(routerConfig *model.StreamPipeConfig) (id string, err e
 	}
 	return resp.ID, nil
 }*/
+
+// ListConfigs returns the whole platform topology of the target account:
+// sources, sinks, routers, pipes, connections and error states. platform_router_dao
+// has no "list" action, so this is the only inventory call.
+func (c *Client) ListConfigs() (*ingextAPI.ListConfigsResponse, error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	resp, err := platformService.ListConfigs()
+
+	if err != nil {
+		c.Logger.Error("failed to list platform configs", "error", err)
+		return nil, fmt.Errorf("failed to list platform configs: %s", err.Error())
+	}
+	return resp, nil
+}
+
+// AddRouterPipe creates a new pipe under an existing router, leaving the pipes
+// already on it untouched.
+func (c *Client) AddRouterPipe(routerID string, pipe *model.StreamPipeConfig) (id string, err error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	resp, err := platformService.AddRouterPipe(&ingextAPI.RouterAddPipeReq{
+		RouterID:   routerID,
+		PipeConfig: pipe,
+	})
+
+	if err != nil {
+		c.Logger.Error("failed to add router pipe", "error", err)
+		return "", fmt.Errorf("failed to add router pipe: %s", err.Error())
+	}
+	return resp.ID, nil
+}
+
+// DeleteRouterPipe removes one pipe from a router.
+func (c *Client) DeleteRouterPipe(routerID, pipeID string) (err error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	err = platformService.DeleteRouterPipe(&ingextAPI.RouterDeletePipeReq{
+		RouterID: routerID,
+		PipeID:   pipeID,
+	})
+
+	if err != nil {
+		c.Logger.Error("failed to delete router pipe", "error", err)
+		return fmt.Errorf("failed to delete router pipe: %s", err.Error())
+	}
+	return nil
+}
+
+// DeleteRouter removes a router by id.
+func (c *Client) DeleteRouter(routerID string) (err error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	err = platformService.DeleteRouter(routerID)
+
+	if err != nil {
+		c.Logger.Error("failed to delete router", "error", err)
+		return fmt.Errorf("failed to delete router: %s", err.Error())
+	}
+	return nil
+}

@@ -11,6 +11,16 @@ export interface IngextClientOptions {
   token?: string;
   debug?: boolean;
   /**
+   * Target a tenant account through a provider (grid manager) proxy. When set,
+   * "?gridaccount=<account>" is appended to every `api/ds` request URL, exactly
+   * as `IngextClient.SetGridAccount` does in the Go client. Client-wide, not
+   * per call.
+   *
+   * Note that failures differ through the proxy: a tenant "ERROR" verdict
+   * arrives as "EXCEPTION", with the message text preserved.
+   */
+  gridAccount?: string;
+  /**
    * If true, TLS certificate verification is disabled. Mirrors the Go
    * client's `InsecureSkipVerify: true` default. Off by default in the TS
    * port — set to true when talking to development clusters with self-signed
@@ -36,6 +46,7 @@ export class IngextClient {
   private logger: Pick<Console, "debug" | "error">;
   private fetchImpl: typeof globalThis.fetch;
   private dispatcher?: Agent;
+  private gridAccount: string;
 
   constructor(opts: IngextClientOptions) {
     this.url = opts.url.replace(/\/+$/, "");
@@ -43,6 +54,7 @@ export class IngextClient {
     this.debugFlag = opts.debug ?? false;
     this.timeoutMs = opts.timeoutMs ?? 600_000;
     this.logger = opts.logger ?? console;
+    this.gridAccount = opts.gridAccount ?? "";
 
     if (opts.fetch) {
       this.fetchImpl = opts.fetch;
@@ -70,6 +82,18 @@ export class IngextClient {
     this.debugFlag = flag;
   }
 
+  /**
+   * Route every subsequent call to a tenant account through the provider proxy.
+   * Pass "" to go back to the site's own account.
+   */
+  setGridAccount(account: string): void {
+    this.gridAccount = account;
+  }
+
+  getGridAccount(): string {
+    return this.gridAccount;
+  }
+
   getUrl(): string {
     return this.url;
   }
@@ -89,9 +113,13 @@ export class IngextClient {
       kargs: kargs ?? {},
     };
 
-    const fullUrl = prefix
+    let fullUrl = prefix
       ? `${this.url}/${prefix}/${functionName}`
       : `${this.url}/${functionName}`;
+
+    if (this.gridAccount) {
+      fullUrl = `${fullUrl}?gridaccount=${encodeURIComponent(this.gridAccount)}`;
+    }
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",

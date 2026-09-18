@@ -82,6 +82,31 @@ type GenericDaoRequest[T any] struct {
 * get_fplv2_task (kargs: id, fpl) — get task status by ID
 * get_fplv2_result (kargs: id, fpl) — get task results by ID
 
+== platform topology APIs: (with prefix 'api/ds')
+
+* platform_list_configs (no kargs) — the whole topology of the account in one call: sources, sinks, routers, pipes, channels, connections, integrations, errors and errorStates.
+** This is the *only* inventory call for routers: platform_router_dao has no "list" action and answers one with "unknown router action:list".
+* platform_router_dao (dao-style: action = get | add | delete) — RouterConfig CRUD by id. "get" returns the router and its pipes.
+* platform_add_simple_router (kargs: processor, router, pipe) — create a router with one pipe carrying one processor. The pipe is created with priority 0, no tags and no sinks.
+* platform_router_add_pipe (kargs: routerID, pipeConfig) — add a pipe to an existing router, leaving its other pipes alone. This is how a second consumer (a behavior pipe beside an application's main pipe) is attached without reinstalling the application template.
+** pipeConfig is a StreamPipeConfig: {name, routerID, matchAll, selector, processorNames, sinkIDs, priority, tags}.
+** **processorNames is a list, but a pipe carries exactly one processor.** The extra entries are not a supported chain; build a chain as a second pipe that the first hands on to by returning "abort".
+** **priority and tags are stored but were missing from both client structs** until 2026-09. A pipe written by a client that does not know about them comes back priority 0 and untagged, which is not what any app-installed pipe looks like: the templates give a main pipe 1000 and a behavior pipe 2000, plus "application"/"appInstance" tags. Read the pipe back after writing it.
+** The processor named in processorNames is not validated at write time. A pipe naming a processor that was never deployed is accepted and fails when events reach it.
+* platform_router_delete_pipe (kargs: routerID, pipeID) — remove one pipe. The router's other pipes keep running, which makes this the rollback for platform_router_add_pipe.
+* platform_router_update_pipes (kargs: routerID, pipeIDs) — replace the set of pipes on a router.
+* platform_pipe_update (kargs: pipe) / platform_pipe_update_processor (kargs: routerName, pipeName, processorName) — edit a pipe, or just swap its processor by name.
+* platform_event_tail (kargs: id, status, limit) — the most recent events **one pipe** ended with, per status. id is a pipe id ("pipe_xxxx"), status is one of pass | abort | drop | error, limit defaults small.
+** This is the live-debugging call. It answers the two questions metrics cannot: is this pipe seeing traffic at all, and what did it do with it — without waiting for the next vendor event.
+** Entries are the whole event as the pipe saw it, as JSON strings, newest first. Each status has its own buffer, so a pipe that is busy on "drop" and empty on "pass" tells you the processor is running and rejecting, not that the pipe is starved.
+** Reading the status of two adjacent pipes is how a multi-pipe router is verified: the upstream pipe should show its events under "abort" (handed on) and the downstream pipe the same events under whatever it returned.
+* platform_processor_tail (kargs: pipeID, processorName, workerIndex, limit) — the trace log lines one processor emitted, for printf/console.log debugging.
+* platform_datasink_dao (dao-style: action = get | add | delete | list) — DataSinkConfig CRUD.
+** A behavior-signal sink is type "redis" with redis.redis.queue = "queue:BehaviorSummary:EventQueue" and no datalake block; the datalake writer is the same type with queue "queue:LVDBService:JobQueue" plus redis.datalake / redis.datalakeIndex.
+* platform_datasource_dao (dao-style) — DataSourceConfig CRUD. platform_source_set_router (kargs: dataSourceID, routerID) connects one to a router.
+* platform_processor_dao (dao-style: action = get | add | update | delete | list) — FPLScript CRUD.
+** "get" reports a name it does not hold as an **error** ("processor not found: <name>"), not as an empty entry.
+
 == resource APIs: (with prefix 'api/ds')
 
 * resource_search (kargs: resource, customer, options) — search resources by type

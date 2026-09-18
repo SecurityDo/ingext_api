@@ -62,6 +62,11 @@ export class Ingext {
     this.client.setDebug(flag);
   }
 
+  /** Route every subsequent call to a tenant through the provider proxy. */
+  setGridAccount(account: string): void {
+    this.client.setGridAccount(account);
+  }
+
   async close(): Promise<void> {
     await this.client.close();
   }

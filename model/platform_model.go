@@ -217,6 +217,13 @@ type StreamPipeConfig struct {
 	ProcessorNames []string `json:"processorNames"`
 	ChannelID      string   `json:"channelID,omitempty"`
 	SinkIDs        []string `json:"sinkIDs,omitempty"`
+
+	// Evaluation order within a router: the application templates give a main
+	// pipe 1000 and a behavior pipe 2000. Omitting it stores 0, which is what a
+	// pipe built from this struct used to do -- unlike every app-installed pipe.
+	Priority int `json:"priority,omitempty"`
+	// Ownership tags ("application", "appInstance"), as the app installer sets.
+	Tags []*Tag `json:"tags,omitempty"`
 }
 
 type DataLakeSinkConfig struct {
