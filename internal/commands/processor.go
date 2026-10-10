@@ -327,7 +327,7 @@ func init() {
 
 	processorAddCmd.Flags().StringVar(&procName, "name", "", "Processor name")
 	processorAddCmd.Flags().StringVar(&procContent, "content", "", "Processor content or file path (use '-' for stdin)")
-	processorAddCmd.Flags().StringVar(&procType, "type", "fpl_processor", "Processor type (fpl_processor|fpl_receiver|fpl_packer|fpl_report)")
+	processorAddCmd.Flags().StringVar(&procType, "type", "fpl_processor", "Processor type (fpl_processor|fpl_receiver|fpl_packer|fpl_report|fpl_rule)")
 	processorAddCmd.Flags().StringVar(&procDesc, "desc", "", "Processor description (optional)")
 	processorAddCmd.Flags().StringVar(&procChannel, "channel", "", "Channel the rule reads from (required for --type fpl_rule)")
 
@@ -336,7 +336,7 @@ func init() {
 
 	processorUpdateCmd.Flags().StringVar(&procName, "name", "", "Processor name")
 	processorUpdateCmd.Flags().StringVar(&procContent, "content", "", "Processor content or file path (use '-' for stdin)")
-	processorUpdateCmd.Flags().StringVar(&procUpdateType, "type", "", "Processor type (fpl_processor|fpl_receiver|fpl_packer|fpl_report); unset keeps the stored type")
+	processorUpdateCmd.Flags().StringVar(&procUpdateType, "type", "", "Processor type (fpl_processor|fpl_receiver|fpl_packer|fpl_report|fpl_rule); unset keeps the stored type")
 	processorUpdateCmd.Flags().StringVar(&procUpdateDesc, "desc", "", "Processor description; unset keeps the stored description")
 	processorUpdateCmd.Flags().StringVar(&procUpdateChannel, "channel", "", "Channel the rule reads from (required for fpl_rule); unset keeps the stored channel")
 
