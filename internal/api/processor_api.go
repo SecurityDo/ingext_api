@@ -7,7 +7,7 @@ import (
 	model "github.com/SecurityDo/ingext_api/model"
 )
 
-func (c *Client) AddProcessor(name, content, processorType, description string) (err error) {
+func (c *Client) AddProcessor(name, content, processorType, description, channel string) (err error) {
 
 	platformService := ingextAPI.NewPlatformService(c.ingextClient)
 
@@ -20,6 +20,7 @@ func (c *Client) AddProcessor(name, content, processorType, description string) 
 		ScriptText:  content,
 		Type:        processorType,
 		Description: description,
+		Channel:     channel,
 	}
 
 	err = platformService.AddProcessor(entry)
@@ -37,8 +38,8 @@ func (c *Client) AddProcessor(name, content, processorType, description string) 
 // the repository and gitPath it was imported from, its group and tags -- so the
 // current entry is read back and patched rather than rebuilt from the flags.
 //
-// An empty processorType or description keeps the stored one.
-func (c *Client) UpdateProcessor(name, content, processorType, description string) (err error) {
+// An empty processorType, description or channel keeps the stored one.
+func (c *Client) UpdateProcessor(name, content, processorType, description, channel string) (err error) {
 
 	platformService := ingextAPI.NewPlatformService(c.ingextClient)
 
@@ -60,6 +61,9 @@ func (c *Client) UpdateProcessor(name, content, processorType, description strin
 	}
 	if description != "" {
 		entry.Description = description
+	}
+	if channel != "" {
+		entry.Channel = channel
 	}
 
 	if err = platformService.UpdateProcessor(entry); err != nil {

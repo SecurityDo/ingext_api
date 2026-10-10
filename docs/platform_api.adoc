@@ -188,6 +188,7 @@ type ComponentErrorState struct {
 == platform_processor_dao 
 
 * actions: get, add, delete, update, list
+* channel: required when type is "fpl_rule"; the client rejects an fpl_rule add/update without one
 
 == platform_source_set_router
 

@@ -1022,8 +1022,12 @@ func (s *PlatformService) GetProcessor(name string) (*model.FPLScript, error) {
 	return resp.Entry, nil
 }
 
-// AddProcessor registers a new processor definition.
+// AddProcessor registers a new processor definition. An "fpl_rule" entry
+// must set Channel.
 func (s *PlatformService) AddProcessor(entry *model.FPLScript) error {
+	if err := entry.Validate(); err != nil {
+		return err
+	}
 	req := &GenericDAORequest[model.FPLScript]{
 		Action: "add",
 		Args: &GenericDAORequestArgs[model.FPLScript]{
@@ -1033,8 +1037,12 @@ func (s *PlatformService) AddProcessor(entry *model.FPLScript) error {
 	return s.call("platform_processor_dao", req, nil)
 }
 
-// UpdateProcessor modifies an existing processor definition.
+// UpdateProcessor modifies an existing processor definition. An "fpl_rule"
+// entry must set Channel.
 func (s *PlatformService) UpdateProcessor(entry *model.FPLScript) error {
+	if err := entry.Validate(); err != nil {
+		return err
+	}
 	req := &GenericDAORequest[model.FPLScript]{
 		Action: "update",
 		Args: &GenericDAORequestArgs[model.FPLScript]{

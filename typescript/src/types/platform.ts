@@ -293,6 +293,8 @@ export interface FPLScript {
    * platform_list_actions.
    */
   actionConfig?: FplActionConfig;
+  /** The channel an "fpl_rule" script reads from; required for that type. */
+  channel?: string;
   description: string;
   scriptLang?: string;
   scriptText: string;

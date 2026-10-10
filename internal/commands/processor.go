@@ -17,16 +17,18 @@ var (
 	procContent string
 	procType    string // Default to "fpl_processor" if not specified
 	procDesc    string // Optional description for the processor
+	procChannel string // Required when procType is "fpl_rule"
 
 	procTestScript    string
 	procTestEvent     string
 	procTestRawSource bool
 
 	// The update flags keep their own vars: they default to "" so that an
-	// unset --type or --desc keeps the stored one, and sharing procType with
+	// unset --type, --desc or --channel keeps the stored one, and sharing procType with
 	// 'add' would leave whichever command registered last deciding its default.
-	procUpdateType string
-	procUpdateDesc string
+	procUpdateType    string
+	procUpdateDesc    string
+	procUpdateChannel string
 
 	procValidateScript string
 	procValidateName   string
@@ -79,7 +81,7 @@ var processorAddCmd = &cobra.Command{
 		//  cmd.PrintErrln()
 		//  cmd.Printf( )  for output data/result
 		cmd.PrintErrf("Deploying processor '%s' (%d bytes)...\n", procName, len(content))
-		err = AppAPI.AddProcessor(procName, content, procType, procDesc)
+		err = AppAPI.AddProcessor(procName, content, procType, procDesc, procChannel)
 		if err != nil {
 			return err
 		}
@@ -96,7 +98,8 @@ var processorUpdateCmd = &cobra.Command{
 --content takes the script inline, '@path' to read a file, or '-' to read stdin,
 the same as 'processor add'. The stored entry is read back and patched, so the
 processor keeps its id, group, tags and the repository it was imported from, and
-an unset --type or --desc keeps the stored one.
+an unset --type, --desc or --channel keeps the stored one. An fpl_rule must have
+a channel.
 
   ingext processor update --name filter-logic --content @./scripts/filter.js
 
@@ -111,7 +114,7 @@ Updating a processor that does not exist is an error rather than an add.`,
 		}
 
 		cmd.PrintErrf("Updating processor '%s' (%d bytes)...\n", procName, len(content))
-		if err := AppAPI.UpdateProcessor(procName, content, procUpdateType, procUpdateDesc); err != nil {
+		if err := AppAPI.UpdateProcessor(procName, content, procUpdateType, procUpdateDesc, procUpdateChannel); err != nil {
 			return err
 		}
 		cmd.PrintErrln("Processor updated successfully")
@@ -326,6 +329,7 @@ func init() {
 	processorAddCmd.Flags().StringVar(&procContent, "content", "", "Processor content or file path (use '-' for stdin)")
 	processorAddCmd.Flags().StringVar(&procType, "type", "fpl_processor", "Processor type (fpl_processor|fpl_receiver|fpl_packer|fpl_report)")
 	processorAddCmd.Flags().StringVar(&procDesc, "desc", "", "Processor description (optional)")
+	processorAddCmd.Flags().StringVar(&procChannel, "channel", "", "Channel the rule reads from (required for --type fpl_rule)")
 
 	_ = processorAddCmd.MarkFlagRequired("name")
 	_ = processorAddCmd.MarkFlagRequired("content")
@@ -334,6 +338,7 @@ func init() {
 	processorUpdateCmd.Flags().StringVar(&procContent, "content", "", "Processor content or file path (use '-' for stdin)")
 	processorUpdateCmd.Flags().StringVar(&procUpdateType, "type", "", "Processor type (fpl_processor|fpl_receiver|fpl_packer|fpl_report); unset keeps the stored type")
 	processorUpdateCmd.Flags().StringVar(&procUpdateDesc, "desc", "", "Processor description; unset keeps the stored description")
+	processorUpdateCmd.Flags().StringVar(&procUpdateChannel, "channel", "", "Channel the rule reads from (required for fpl_rule); unset keeps the stored channel")
 
 	_ = processorUpdateCmd.MarkFlagRequired("name")
 	_ = processorUpdateCmd.MarkFlagRequired("content")

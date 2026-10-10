@@ -24,6 +24,13 @@ import type { InstanceRole } from "../types/pod_role.js";
 
 const DS = "api/ds";
 
+/** An "fpl_rule" script must name the channel it reads from. */
+function validateFPLScript(entry: FPLScript): void {
+  if (entry.type === "fpl_rule" && !entry.channel) {
+    throw new Error(`processor ${entry.name}: channel is required for type fpl_rule`);
+  }
+}
+
 export interface ListConfigsResponse {
   sources: DataSourceConfig[];
   sinks: DataSinkConfig[];
@@ -616,6 +623,7 @@ export class PlatformService {
   }
 
   async addProcessor(entry: FPLScript): Promise<void> {
+    validateFPLScript(entry);
     const req: GenericDAORequest<FPLScript> = {
       action: "add",
       args: { entry },
@@ -624,6 +632,7 @@ export class PlatformService {
   }
 
   async updateProcessor(entry: FPLScript): Promise<void> {
+    validateFPLScript(entry);
     const req: GenericDAORequest<FPLScript> = {
       action: "update",
       args: { entry },

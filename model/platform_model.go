@@ -393,7 +393,9 @@ type FPLScript struct {
 	Type string `json:"type"`
 	Tags []*Tag `json:"tags,omitempty"`
 
-	//Channel      string           `json:"channel,omitempty"`
+	// Channel is the channel an "fpl_rule" script reads from; it is required
+	// for that type and unused by the others. See Validate.
+	Channel string `json:"channel,omitempty"`
 	// ActionConfig is set on scripts of Type "fpl_action" and says what the
 	// action drives; platform_list_actions is the only endpoint that fills it in.
 	ActionConfig *FplActionConfig `json:"actionConfig,omitempty"`
@@ -410,6 +412,15 @@ type FPLScript struct {
 
 	//Tenant string `json:"tenant,omitempty"`
 	//Source string `json:"source,omitempty"`
+}
+
+// Validate checks the fields that depend on Type: an "fpl_rule" script must
+// name its Channel.
+func (s *FPLScript) Validate() error {
+	if s.Type == "fpl_rule" && s.Channel == "" {
+		return fmt.Errorf("processor %s: channel is required for type fpl_rule", s.Name)
+	}
+	return nil
 }
 
 // FplActionConfig describes what an "fpl_action" script is wired to. Target is

@@ -75,7 +75,7 @@ func TestClientUpdateProcessor(t *testing.T) {
 	}
 	c, calls := newProcessorDAORecorder(t, stored)
 
-	if err := c.UpdateProcessor("Mimecast_Adjustments", "function main() { /* new */ }", "", ""); err != nil {
+	if err := c.UpdateProcessor("Mimecast_Adjustments", "function main() { /* new */ }", "", "", ""); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
@@ -101,7 +101,7 @@ func TestClientUpdateProcessor(t *testing.T) {
 		t.Fatalf("empty flags overwrote the stored values: %+v", sent)
 	}
 
-	if err := c.UpdateProcessor("Mimecast_Adjustments", "x", "fpl_report", "new description"); err != nil {
+	if err := c.UpdateProcessor("Mimecast_Adjustments", "x", "fpl_report", "new description", ""); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	sent = (*calls)[3].Args.Entry
@@ -114,11 +114,43 @@ func TestClientUpdateProcessor(t *testing.T) {
 func TestClientUpdateProcessorMissing(t *testing.T) {
 	c, calls := newProcessorDAORecorder(t, nil)
 
-	err := c.UpdateProcessor("nosuchprocessor", "function main() {}", "", "")
+	err := c.UpdateProcessor("nosuchprocessor", "function main() {}", "", "", "")
 	if err == nil {
 		t.Fatalf("expected an error for a processor that does not exist")
 	}
 	if len(*calls) != 1 {
 		t.Fatalf("nothing should be written when the entry is missing, got %+v", *calls)
+	}
+}
+
+// TestClientProcessorRuleChannel keeps an fpl_rule from being written without
+// the channel it reads from, and lets update fill one in.
+func TestClientProcessorRuleChannel(t *testing.T) {
+	stored := &model.FPLScript{ID: 7, Name: "rule1", Type: "fpl_processor", ScriptText: "x"}
+	c, calls := newProcessorDAORecorder(t, stored)
+
+	if err := c.AddProcessor("rule1", "x", "fpl_rule", "", ""); err == nil {
+		t.Fatalf("expected an error adding an fpl_rule without a channel")
+	}
+	if err := c.UpdateProcessor("rule1", "x", "fpl_rule", "", ""); err == nil {
+		t.Fatalf("expected an error updating to an fpl_rule without a channel")
+	}
+	// Only the update's read reached the server.
+	if len(*calls) != 1 || (*calls)[0].Action != "get" {
+		t.Fatalf("nothing should be written without a channel, got %+v", *calls)
+	}
+
+	if err := c.AddProcessor("rule1", "x", "fpl_rule", "", "events"); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if sent := (*calls)[1].Args.Entry; sent.Channel != "events" {
+		t.Fatalf("channel not sent on add: %+v", sent)
+	}
+
+	if err := c.UpdateProcessor("rule1", "x", "fpl_rule", "", "events"); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if sent := (*calls)[3].Args.Entry; sent.Type != "fpl_rule" || sent.Channel != "events" {
+		t.Fatalf("channel not applied on update: %+v", sent)
 	}
 }
