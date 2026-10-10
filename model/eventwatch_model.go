@@ -133,7 +133,8 @@ type EventWatchBucket struct {
 	AggregationBucket bool   `json:"aggregationBucket"`
 	IsProcessor       bool   `json:"isProcessor"`
 	Processor         string `json:"processor"`
-	RuleGroup         string `json:"ruleGroup"` // sigma
+	Parser            string `json:"parser,omitempty"` // parser rule: the FPL processor that matches and emits it; eventwatch detection never loads it
+	RuleGroup         string `json:"ruleGroup"`        // sigma
 
 	// for compatibility
 	BucketType string   `json:"bucketType,omitempty"` //  "user"  ||  "system"

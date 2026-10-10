@@ -104,6 +104,8 @@ export interface EventWatchBucket {
   aggregationBucket: boolean;
   isProcessor: boolean;
   processor: string;
+  /** Parser rule: the FPL processor that matches and emits it; eventwatch detection never loads it. */
+  parser?: string;
   ruleGroup: string;
   bucketType?: string;
   keyType?: string;
