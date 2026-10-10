@@ -86,6 +86,20 @@ func (c *Client) DeleteProcessor(name string) (err error) {
 	return nil
 }
 
+// GetProcessor returns one processor's stored entry, script included.
+func (c *Client) GetProcessor(name string) (*model.FPLScript, error) {
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+	entry, err := platformService.GetProcessor(name)
+	if err != nil {
+		c.Logger.Error("failed to get processor", "name", name, "error", err)
+		return nil, fmt.Errorf("failed to get processor %s: %s", name, err.Error())
+	}
+	if entry == nil {
+		return nil, fmt.Errorf("processor %s not found", name)
+	}
+	return entry, nil
+}
+
 func (c *Client) ListProcessor() (entries []*model.FPLScript, err error) {
 
 	platformService := ingextAPI.NewPlatformService(c.ingextClient)

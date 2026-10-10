@@ -30,6 +30,8 @@ var (
 	procUpdateDesc    string
 	procUpdateChannel string
 
+	procGetScript bool
+
 	procValidateScript string
 	procValidateName   string
 )
@@ -56,6 +58,30 @@ var listProcessorCmd = &cobra.Command{
 		for _, entry := range entries {
 			cmd.PrintErrf("Name: %s, Type: %s\n", entry.Name, entry.Type)
 		}
+		return nil
+	},
+}
+
+var processorGetCmd = &cobra.Command{
+	Use:   "get",
+	Short: "Print a processor's stored entry as JSON, script included",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if procName == "" {
+			return fmt.Errorf("--name is required")
+		}
+		entry, err := AppAPI.GetProcessor(procName)
+		if err != nil {
+			return err
+		}
+		if procGetScript {
+			fmt.Fprint(cmd.OutOrStdout(), entry.ScriptText)
+			return nil
+		}
+		out, err := json.MarshalIndent(entry, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(out))
 		return nil
 	},
 }
@@ -320,10 +346,13 @@ func readProcessorInput(path, flag string, stdin io.Reader) ([]byte, error) {
 // echo "function process() { ... }" | ingext processor add --name filter --content -
 func init() {
 	RootCmd.AddCommand(processorCmd)
-	processorCmd.AddCommand(processorAddCmd, processorUpdateCmd, listProcessorCmd, processorDelCmd, processorValidateCmd, processorTestCmd) // Add del similarly
+	processorCmd.AddCommand(processorAddCmd, processorUpdateCmd, processorGetCmd, listProcessorCmd, processorDelCmd, processorValidateCmd, processorTestCmd) // Add del similarly
 
 	//processorAddCmd.Flags().StringVar(&procName, "name", "", "Processor name")
 	//processorAddCmd.Flags().StringVar(&procFile, "file", "", "Processor file path")
+
+	processorGetCmd.Flags().StringVar(&procName, "name", "", "Processor name")
+	processorGetCmd.Flags().BoolVar(&procGetScript, "script", false, "Print only the script")
 
 	processorAddCmd.Flags().StringVar(&procName, "name", "", "Processor name")
 	processorAddCmd.Flags().StringVar(&procContent, "content", "", "Processor content or file path (use '-' for stdin)")
