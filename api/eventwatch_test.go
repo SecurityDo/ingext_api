@@ -372,3 +372,29 @@ func TestEventWatchService_TestDeployedRule(t *testing.T) {
 		t.Fatalf("expected an error for an empty name")
 	}
 }
+
+// An aggregation line's valueMap holds a number; a hit line's holds strings.
+// Both are lines a parser rule test returned on kql.
+func TestEventWatchRuleTestResult_DecodeAggregationSignal(t *testing.T) {
+	resp := &EventWatchRuleTestResult{Signals: []string{
+		`{"signal":"behavior:O365_LoginFailed_Agg_PR:Failed","ts":1791065040,"valueMap":{"patrick.evans@fluencysecurity.com":1}}`,
+		`{"count":1,"key":"Alice@Corp.com","signal":"behavior:O365_AzureAD_UserLoggedIn_PR","ts":1791604200,"valueMap":{"@fields.ClientIP":"73.12.4.5"}}`,
+		`{"signal":"behavior:R:Sum","ts":1791065040,"valueMap":{"k":2.5,"n":null}}`,
+	}}
+	signals, err := resp.DecodeSignals()
+	if err != nil {
+		t.Fatalf("DecodeSignals: %v", err)
+	}
+	if got := signals[0].ValueMap["patrick.evans@fluencysecurity.com"]; got != "1" || signals[0].TS != 1791065040 || signals[0].Key != "" {
+		t.Errorf("aggregation line: %+v", signals[0])
+	}
+	if signals[1].ValueMap["@fields.ClientIP"] != "73.12.4.5" || signals[1].Key != "Alice@Corp.com" || signals[1].Count != 1 {
+		t.Errorf("hit line: %+v", signals[1])
+	}
+	if signals[2].ValueMap["k"] != "2.5" || signals[2].ValueMap["n"] != "" {
+		t.Errorf("other values: %+v", signals[2].ValueMap)
+	}
+	if _, err := (&EventWatchRuleTestResult{Signals: []string{`{"valueMap":[1]}`}}).DecodeSignals(); err == nil {
+		t.Error("a valueMap that is not an object must still fail")
+	}
+}

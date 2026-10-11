@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
+	"strings"
 	"time"
 
 	ingextAPI "github.com/SecurityDo/ingext_api/api"
@@ -210,6 +212,18 @@ configured hits without producing a signal or a behavior event.`,
 			return err
 		}
 		for _, signal := range signals {
+			if strings.Count(signal.Signal, ":") >= 2 {
+				// an aggregation line: {<key value>: <number>}, no key or count
+				keys := make([]string, 0, len(signal.ValueMap))
+				for k := range signal.ValueMap {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				for _, k := range keys {
+					cmd.PrintErrf("signal: %s key %s value %s\n", signal.Signal, k, signal.ValueMap[k])
+				}
+				continue
+			}
 			cmd.PrintErrf("signal: %s key %s count %d\n", signal.Signal, signal.Key, signal.Count)
 		}
 		if resp.BehaviorEvent != nil {

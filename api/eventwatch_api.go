@@ -177,12 +177,44 @@ type EventWatchRuleTestResult struct {
 // EventWatchTestSignal is one entry of EventWatchRuleTestResult.Signals, once
 // unpacked. TS is in seconds, unlike the behavior event's millisecond
 // timestamp.
+//
+// A hit line (behavior:<rule>) carries the rule's fields in ValueMap, all
+// strings. An aggregation line (behavior:<rule>:<correlation>) has no key or
+// count, and its ValueMap is {<key value>: <number>}; a number is kept as its
+// JSON text, e.g. "1".
 type EventWatchTestSignal struct {
 	Signal   string            `json:"signal"`
 	TS       int64             `json:"ts"`
 	Count    int               `json:"count"`
 	Key      string            `json:"key"`
 	ValueMap map[string]string `json:"valueMap"`
+}
+
+// UnmarshalJSON accepts any JSON value in valueMap: a string as is, null as "",
+// anything else as its JSON text.
+func (r *EventWatchTestSignal) UnmarshalJSON(b []byte) error {
+	type plain EventWatchTestSignal
+	var wire struct {
+		plain
+		ValueMap map[string]json.RawMessage `json:"valueMap"`
+	}
+	if err := json.Unmarshal(b, &wire); err != nil {
+		return err
+	}
+	*r = EventWatchTestSignal(wire.plain)
+	if wire.ValueMap == nil {
+		return nil
+	}
+	r.ValueMap = make(map[string]string, len(wire.ValueMap))
+	for k, raw := range wire.ValueMap {
+		var str string
+		if err := json.Unmarshal(raw, &str); err == nil {
+			r.ValueMap[k] = str
+		} else {
+			r.ValueMap[k] = string(bytes.TrimSpace(raw))
+		}
+	}
+	return nil
 }
 
 // DecodeSignals unpacks the JSON documents the endpoint returns as strings.

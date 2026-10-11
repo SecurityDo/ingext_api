@@ -60,13 +60,17 @@ export interface EventWatchRuleTestResult {
 /**
  * One entry of `EventWatchRuleTestResult.signals`, unpacked. `ts` is in
  * seconds, unlike the behavior event's millisecond `timestamp`.
+ *
+ * A hit line (`behavior:<rule>`) carries the rule's fields in `valueMap`, all
+ * strings. An aggregation line (`behavior:<rule>:<correlation>`) has no `key`
+ * or `count`, and its `valueMap` is `{<key value>: <number>}`.
  */
 export interface EventWatchTestSignal {
   signal: string;
   ts: number;
-  count: number;
-  key: string;
-  valueMap: Record<string, string>;
+  count?: number;
+  key?: string;
+  valueMap: Record<string, string | number>;
 }
 
 /** Unpack the JSON documents the endpoint returns as strings. */
