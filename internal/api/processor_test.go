@@ -75,7 +75,7 @@ func TestClientUpdateProcessor(t *testing.T) {
 	}
 	c, calls := newProcessorDAORecorder(t, stored)
 
-	if err := c.UpdateProcessor("Mimecast_Adjustments", "function main() { /* new */ }", "", "", ""); err != nil {
+	if err := c.UpdateProcessor("Mimecast_Adjustments", "function main() { /* new */ }", "", "", "", nil); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
@@ -101,7 +101,7 @@ func TestClientUpdateProcessor(t *testing.T) {
 		t.Fatalf("empty flags overwrote the stored values: %+v", sent)
 	}
 
-	if err := c.UpdateProcessor("Mimecast_Adjustments", "x", "fpl_report", "new description", ""); err != nil {
+	if err := c.UpdateProcessor("Mimecast_Adjustments", "x", "fpl_report", "new description", "", nil); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	sent = (*calls)[3].Args.Entry
@@ -114,7 +114,7 @@ func TestClientUpdateProcessor(t *testing.T) {
 func TestClientUpdateProcessorMissing(t *testing.T) {
 	c, calls := newProcessorDAORecorder(t, nil)
 
-	err := c.UpdateProcessor("nosuchprocessor", "function main() {}", "", "", "")
+	err := c.UpdateProcessor("nosuchprocessor", "function main() {}", "", "", "", nil)
 	if err == nil {
 		t.Fatalf("expected an error for a processor that does not exist")
 	}
@@ -129,10 +129,10 @@ func TestClientProcessorRuleChannel(t *testing.T) {
 	stored := &model.FPLScript{ID: 7, Name: "rule1", Type: "fpl_processor", ScriptText: "x"}
 	c, calls := newProcessorDAORecorder(t, stored)
 
-	if err := c.AddProcessor("rule1", "x", "fpl_rule", "", ""); err == nil {
+	if err := c.AddProcessor("rule1", "x", "fpl_rule", "", "", nil); err == nil {
 		t.Fatalf("expected an error adding an fpl_rule without a channel")
 	}
-	if err := c.UpdateProcessor("rule1", "x", "fpl_rule", "", ""); err == nil {
+	if err := c.UpdateProcessor("rule1", "x", "fpl_rule", "", "", nil); err == nil {
 		t.Fatalf("expected an error updating to an fpl_rule without a channel")
 	}
 	// Only the update's read reached the server.
@@ -140,17 +140,70 @@ func TestClientProcessorRuleChannel(t *testing.T) {
 		t.Fatalf("nothing should be written without a channel, got %+v", *calls)
 	}
 
-	if err := c.AddProcessor("rule1", "x", "fpl_rule", "", "events"); err != nil {
+	if err := c.AddProcessor("rule1", "x", "fpl_rule", "", "events", nil); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	if sent := (*calls)[1].Args.Entry; sent.Channel != "events" {
 		t.Fatalf("channel not sent on add: %+v", sent)
 	}
 
-	if err := c.UpdateProcessor("rule1", "x", "fpl_rule", "", "events"); err != nil {
+	if err := c.UpdateProcessor("rule1", "x", "fpl_rule", "", "events", nil); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	if sent := (*calls)[3].Args.Entry; sent.Type != "fpl_rule" || sent.Channel != "events" {
 		t.Fatalf("channel not applied on update: %+v", sent)
+	}
+}
+
+// TestClientProcessorActionConfig keeps an fpl_action from being written
+// without the target and integration the platform dereferences, and checks that
+// update keeps a stored config the caller does not touch.
+func TestClientProcessorActionConfig(t *testing.T) {
+	email := &model.FplActionConfig{Target: "Platform Notification", Integration: "Email"}
+	stored := &model.FPLScript{ID: 720024, Name: "act1", Type: "fpl_action", ActionConfig: email, ScriptText: "x"}
+	c, calls := newProcessorDAORecorder(t, stored)
+
+	if err := c.AddProcessor("act1", "x", "fpl_action", "", "", nil); err == nil {
+		t.Fatalf("expected an error adding an fpl_action without an actionConfig")
+	}
+	if err := c.AddProcessor("act1", "x", "fpl_action", "", "", &model.FplActionConfig{Target: "Platform Notification"}); err == nil {
+		t.Fatalf("expected an error adding an fpl_action without an integration")
+	}
+	if err := c.AddProcessor("p1", "x", "fpl_processor", "", "", email); err == nil {
+		t.Fatalf("expected an error adding an actionConfig to an fpl_processor")
+	}
+	if len(*calls) != 0 {
+		t.Fatalf("nothing should be written without a valid actionConfig, got %+v", *calls)
+	}
+
+	if err := c.AddProcessor("act1", "x", "fpl_action", "", "", email); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if sent := (*calls)[0].Args.Entry; sent.ActionConfig == nil || *sent.ActionConfig != *email {
+		t.Fatalf("actionConfig not sent on add: %+v", sent)
+	}
+
+	// A nil action keeps the stored config.
+	if err := c.UpdateProcessor("act1", "y", "", "", "", nil); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if sent := (*calls)[2].Args.Entry; sent.ActionConfig == nil || *sent.ActionConfig != *email {
+		t.Fatalf("update dropped the stored actionConfig: %+v", sent)
+	}
+
+	// A set field replaces only itself.
+	if err := c.UpdateProcessor("act1", "y", "", "", "", &model.FplActionConfig{Integration: "Slack"}); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if sent := (*calls)[4].Args.Entry; sent.ActionConfig.Target != "Platform Notification" || sent.ActionConfig.Integration != "Slack" {
+		t.Fatalf("partial actionConfig not merged: %+v", sent.ActionConfig)
+	}
+
+	// Changing the type away from fpl_action drops the config.
+	if err := c.UpdateProcessor("act1", "y", "fpl_processor", "", "", nil); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if sent := (*calls)[6].Args.Entry; sent.ActionConfig != nil {
+		t.Fatalf("actionConfig kept on a non-action type: %+v", sent.ActionConfig)
 	}
 }

@@ -396,8 +396,8 @@ type FPLScript struct {
 	// Channel is the channel an "fpl_rule" script reads from; it is required
 	// for that type and unused by the others. See Validate.
 	Channel string `json:"channel,omitempty"`
-	// ActionConfig is set on scripts of Type "fpl_action" and says what the
-	// action drives; platform_list_actions is the only endpoint that fills it in.
+	// ActionConfig is required on scripts of Type "fpl_action" and says what
+	// the action drives; it is unused by the other types. See Validate.
 	ActionConfig *FplActionConfig `json:"actionConfig,omitempty"`
 	//RuleConfig   *FplRuleConfig   `json:"ruleConfig,omitempty"`
 
@@ -415,10 +415,19 @@ type FPLScript struct {
 }
 
 // Validate checks the fields that depend on Type: an "fpl_rule" script must
-// name its Channel.
+// name its Channel, and an "fpl_action" script must carry an ActionConfig with
+// a Target and an Integration -- the platform reads ActionConfig.Target without
+// a nil check when it loads or lists actions.
 func (s *FPLScript) Validate() error {
 	if s.Type == "fpl_rule" && s.Channel == "" {
 		return fmt.Errorf("processor %s: channel is required for type fpl_rule", s.Name)
+	}
+	if s.Type == "fpl_action" {
+		if s.ActionConfig == nil || s.ActionConfig.Target == "" || s.ActionConfig.Integration == "" {
+			return fmt.Errorf("processor %s: actionConfig target and integration are required for type fpl_action", s.Name)
+		}
+	} else if s.ActionConfig != nil {
+		return fmt.Errorf("processor %s: actionConfig is only valid for type fpl_action", s.Name)
 	}
 	return nil
 }

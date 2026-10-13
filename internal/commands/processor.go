@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	ingextAPI "github.com/SecurityDo/ingext_api/api"
+	"github.com/SecurityDo/ingext_api/model"
 	"github.com/spf13/cobra"
 )
 
@@ -18,6 +19,11 @@ var (
 	procType    string // Default to "fpl_processor" if not specified
 	procDesc    string // Optional description for the processor
 	procChannel string // Required when procType is "fpl_rule"
+
+	// The action config of an "fpl_action". 'add' defaults the target to
+	// defaultActionTarget; 'update' leaves an unset field as stored.
+	procActionTarget      string
+	procActionIntegration string
 
 	procTestScript    string
 	procTestEvent     string
@@ -35,6 +41,23 @@ var (
 	procValidateScript string
 	procValidateName   string
 )
+
+// defaultActionTarget is the target of every action a notification endpoint
+// can name, which is every action released so far.
+const defaultActionTarget = "Platform Notification"
+
+// actionConfigFromFlags returns the ActionConfig the --action-* flags describe,
+// or nil when neither is set. 'add' passes the default target for an
+// "fpl_action"; 'update' passes "" so that an unset flag keeps the stored value.
+func actionConfigFromFlags(target, integration, defaultTarget string) *model.FplActionConfig {
+	if target == "" && integration == "" && defaultTarget == "" {
+		return nil
+	}
+	if target == "" {
+		target = defaultTarget
+	}
+	return &model.FplActionConfig{Target: target, Integration: integration}
+}
 
 var processorCmd = &cobra.Command{
 	Use:   "processor",
@@ -93,6 +116,7 @@ var processorAddCmd = &cobra.Command{
 	// 1. ingext processor add --name my-proc --content "@./my-script.js"
 	// 2. ingext processor add --name my-proc --content "function process() { ... }"
 	// 3. cat my-script.js | ingext processor add --name my-proc --content -
+	// 4. ingext processor add --name my-action --type fpl_action --action-integration Email --content "@./my-action.js"
 	RunE: func(cmd *cobra.Command, args []string) error {
 		content, err := readProcessorContent(procContent, cmd.InOrStdin())
 		if err != nil {
@@ -106,8 +130,14 @@ var processorAddCmd = &cobra.Command{
 		// Now you have the content in 'content' variable
 		//  cmd.PrintErrln()
 		//  cmd.Printf( )  for output data/result
+		defaultTarget := ""
+		if procType == "fpl_action" {
+			defaultTarget = defaultActionTarget
+		}
+		action := actionConfigFromFlags(procActionTarget, procActionIntegration, defaultTarget)
+
 		cmd.PrintErrf("Deploying processor '%s' (%d bytes)...\n", procName, len(content))
-		err = AppAPI.AddProcessor(procName, content, procType, procDesc, procChannel)
+		err = AppAPI.AddProcessor(procName, content, procType, procDesc, procChannel, action)
 		if err != nil {
 			return err
 		}
@@ -124,8 +154,9 @@ var processorUpdateCmd = &cobra.Command{
 --content takes the script inline, '@path' to read a file, or '-' to read stdin,
 the same as 'processor add'. The stored entry is read back and patched, so the
 processor keeps its id, group, tags and the repository it was imported from, and
-an unset --type, --desc or --channel keeps the stored one. An fpl_rule must have
-a channel.
+an unset --type, --desc, --channel, --action-target or --action-integration
+keeps the stored one. An fpl_rule must have a channel, and an fpl_action an
+action target and integration.
 
   ingext processor update --name filter-logic --content @./scripts/filter.js
 
@@ -140,7 +171,8 @@ Updating a processor that does not exist is an error rather than an add.`,
 		}
 
 		cmd.PrintErrf("Updating processor '%s' (%d bytes)...\n", procName, len(content))
-		if err := AppAPI.UpdateProcessor(procName, content, procUpdateType, procUpdateDesc, procUpdateChannel); err != nil {
+		if err := AppAPI.UpdateProcessor(procName, content, procUpdateType, procUpdateDesc, procUpdateChannel,
+			actionConfigFromFlags(procActionTarget, procActionIntegration, "")); err != nil {
 			return err
 		}
 		cmd.PrintErrln("Processor updated successfully")
@@ -356,18 +388,22 @@ func init() {
 
 	processorAddCmd.Flags().StringVar(&procName, "name", "", "Processor name")
 	processorAddCmd.Flags().StringVar(&procContent, "content", "", "Processor content or file path (use '-' for stdin)")
-	processorAddCmd.Flags().StringVar(&procType, "type", "fpl_processor", "Processor type (fpl_processor|fpl_receiver|fpl_packer|fpl_report|fpl_rule)")
+	processorAddCmd.Flags().StringVar(&procType, "type", "fpl_processor", "Processor type (fpl_processor|fpl_receiver|fpl_packer|fpl_report|fpl_rule|fpl_action)")
 	processorAddCmd.Flags().StringVar(&procDesc, "desc", "", "Processor description (optional)")
 	processorAddCmd.Flags().StringVar(&procChannel, "channel", "", "Channel the rule reads from (required for --type fpl_rule)")
+	processorAddCmd.Flags().StringVar(&procActionTarget, "action-target", "", "Subsystem that invokes the action (--type fpl_action; default \""+defaultActionTarget+"\")")
+	processorAddCmd.Flags().StringVar(&procActionIntegration, "action-integration", "", "Endpoint integration the action serves, e.g. Email or Slack (required for --type fpl_action)")
 
 	_ = processorAddCmd.MarkFlagRequired("name")
 	_ = processorAddCmd.MarkFlagRequired("content")
 
 	processorUpdateCmd.Flags().StringVar(&procName, "name", "", "Processor name")
 	processorUpdateCmd.Flags().StringVar(&procContent, "content", "", "Processor content or file path (use '-' for stdin)")
-	processorUpdateCmd.Flags().StringVar(&procUpdateType, "type", "", "Processor type (fpl_processor|fpl_receiver|fpl_packer|fpl_report|fpl_rule); unset keeps the stored type")
+	processorUpdateCmd.Flags().StringVar(&procUpdateType, "type", "", "Processor type (fpl_processor|fpl_receiver|fpl_packer|fpl_report|fpl_rule|fpl_action); unset keeps the stored type")
 	processorUpdateCmd.Flags().StringVar(&procUpdateDesc, "desc", "", "Processor description; unset keeps the stored description")
 	processorUpdateCmd.Flags().StringVar(&procUpdateChannel, "channel", "", "Channel the rule reads from (required for fpl_rule); unset keeps the stored channel")
+	processorUpdateCmd.Flags().StringVar(&procActionTarget, "action-target", "", "Subsystem that invokes the action (fpl_action); unset keeps the stored target")
+	processorUpdateCmd.Flags().StringVar(&procActionIntegration, "action-integration", "", "Endpoint integration the action serves (fpl_action); unset keeps the stored integration")
 
 	_ = processorUpdateCmd.MarkFlagRequired("name")
 	_ = processorUpdateCmd.MarkFlagRequired("content")

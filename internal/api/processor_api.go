@@ -7,7 +7,9 @@ import (
 	model "github.com/SecurityDo/ingext_api/model"
 )
 
-func (c *Client) AddProcessor(name, content, processorType, description, channel string) (err error) {
+// AddProcessor deploys a new processor. action is the ActionConfig an
+// "fpl_action" needs and must be nil for the other types.
+func (c *Client) AddProcessor(name, content, processorType, description, channel string, action *model.FplActionConfig) (err error) {
 
 	platformService := ingextAPI.NewPlatformService(c.ingextClient)
 
@@ -16,11 +18,12 @@ func (c *Client) AddProcessor(name, content, processorType, description, channel
 	}
 
 	entry := &model.FPLScript{
-		Name:        name,
-		ScriptText:  content,
-		Type:        processorType,
-		Description: description,
-		Channel:     channel,
+		Name:         name,
+		ScriptText:   content,
+		Type:         processorType,
+		Description:  description,
+		Channel:      channel,
+		ActionConfig: action,
 	}
 
 	err = platformService.AddProcessor(entry)
@@ -38,8 +41,10 @@ func (c *Client) AddProcessor(name, content, processorType, description, channel
 // the repository and gitPath it was imported from, its group and tags -- so the
 // current entry is read back and patched rather than rebuilt from the flags.
 //
-// An empty processorType, description or channel keeps the stored one.
-func (c *Client) UpdateProcessor(name, content, processorType, description, channel string) (err error) {
+// An empty processorType, description or channel keeps the stored one, and so
+// does a nil action or an empty field of it. Changing the type away from
+// "fpl_action" drops the stored ActionConfig.
+func (c *Client) UpdateProcessor(name, content, processorType, description, channel string, action *model.FplActionConfig) (err error) {
 
 	platformService := ingextAPI.NewPlatformService(c.ingextClient)
 
@@ -64,6 +69,22 @@ func (c *Client) UpdateProcessor(name, content, processorType, description, chan
 	}
 	if channel != "" {
 		entry.Channel = channel
+	}
+	if action != nil {
+		merged := model.FplActionConfig{}
+		if entry.ActionConfig != nil {
+			merged = *entry.ActionConfig
+		}
+		if action.Target != "" {
+			merged.Target = action.Target
+		}
+		if action.Integration != "" {
+			merged.Integration = action.Integration
+		}
+		entry.ActionConfig = &merged
+	}
+	if entry.Type != "fpl_action" && action == nil {
+		entry.ActionConfig = nil
 	}
 
 	if err = platformService.UpdateProcessor(entry); err != nil {
