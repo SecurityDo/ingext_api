@@ -38,6 +38,8 @@ var (
 
 	procGetScript bool
 
+	procListType string
+
 	procValidateScript string
 	procValidateName   string
 )
@@ -66,11 +68,29 @@ var processorCmd = &cobra.Command{
 
 var listProcessorCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List all processors",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("Listing processors...")
+	Short: "List processors of one type",
+	Long: `List the tenant's processors of one type.
 
-		entries, err := AppAPI.ListProcessor()
+The processor DAO's list returns parsers only, so --type picks the endpoint:
+fpl_processor (the default) lists parsers, and fpl_action lists actions with
+the target and integration each serves.
+
+  ingext processor list --type fpl_action`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		var (
+			entries []*model.FPLScript
+			err     error
+		)
+		switch procListType {
+		case "", "fpl_processor":
+			fmt.Println("Listing processors...")
+			entries, err = AppAPI.ListProcessor()
+		case "fpl_action":
+			fmt.Println("Listing actions...")
+			entries, err = AppAPI.ListActions()
+		default:
+			return fmt.Errorf("--type %s cannot be listed: use fpl_processor or fpl_action, or 'processor get' by name", procListType)
+		}
 		if err != nil {
 			return err
 		}
@@ -79,6 +99,10 @@ var listProcessorCmd = &cobra.Command{
 			return nil
 		}
 		for _, entry := range entries {
+			if entry.ActionConfig != nil {
+				cmd.PrintErrf("Name: %s, Type: %s, Target: %s, Integration: %s\n", entry.Name, entry.Type, entry.ActionConfig.Target, entry.ActionConfig.Integration)
+				continue
+			}
 			cmd.PrintErrf("Name: %s, Type: %s\n", entry.Name, entry.Type)
 		}
 		return nil
@@ -382,6 +406,8 @@ func init() {
 
 	//processorAddCmd.Flags().StringVar(&procName, "name", "", "Processor name")
 	//processorAddCmd.Flags().StringVar(&procFile, "file", "", "Processor file path")
+
+	listProcessorCmd.Flags().StringVar(&procListType, "type", "fpl_processor", "Processor type to list (fpl_processor|fpl_action)")
 
 	processorGetCmd.Flags().StringVar(&procName, "name", "", "Processor name")
 	processorGetCmd.Flags().BoolVar(&procGetScript, "script", false, "Print only the script")

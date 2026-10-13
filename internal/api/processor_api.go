@@ -121,6 +121,22 @@ func (c *Client) GetProcessor(name string) (*model.FPLScript, error) {
 	return entry, nil
 }
 
+// ListActions returns the tenant's fpl_action scripts with their ActionConfig.
+// The processor DAO's list returns parsers only, so actions come from
+// platform_list_actions.
+func (c *Client) ListActions() (entries []*model.FPLScript, err error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	entries, err = platformService.ListActions()
+
+	if err != nil {
+		c.Logger.Error("failed to list actions", "error", err)
+		return nil, fmt.Errorf("failed to list actions: %s", err.Error())
+	}
+	return entries, nil
+}
+
 func (c *Client) ListProcessor() (entries []*model.FPLScript, err error) {
 
 	platformService := ingextAPI.NewPlatformService(c.ingextClient)
