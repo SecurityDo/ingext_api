@@ -160,7 +160,9 @@ func (s *DatalakeService) AddSchema(name, description string, content string) (e
 // ListDataTables calls /api/ds/list_data_tables and returns every table the
 // account can query, split into datalake stream tables (query them with
 // kql_search; Name is the KQL table identifier) and vendor resource tables
-// (query them with resource_search). The call takes no arguments.
+// (inventory snapshots such as office365User or office365ConditionalAccessPolicy;
+// also queried with kql_search by Name, without a time filter, or paged raw
+// through ResourceService). The call takes no arguments.
 //
 // The platform excludes the "default" and "AzureAudit" datalake indexes, and
 // silently skips any index whose schema entry is missing.

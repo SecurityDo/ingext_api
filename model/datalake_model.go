@@ -82,8 +82,10 @@ type DataTable struct {
 // entry the index references. The platform excludes the "default" and
 // "AzureAudit" indexes.
 //
-// ResourceTables are entity tables synced from a vendor API; Name is the
-// resource argument to resource_search and Description is always empty.
+// ResourceTables are entity tables synced from a vendor API. Name is both the
+// KQL table identifier for kql_search (one row per object as of the last sync,
+// so no time filter) and the resource argument to the resource_search endpoint
+// (ResourceService). Description is always empty.
 //
 // Both slices are omitempty on the wire, so an account with nothing to query
 // returns an empty object rather than empty arrays.
