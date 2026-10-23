@@ -117,7 +117,7 @@ type FplRowState struct {
 }
 
 type PrimitiveValue struct {
-	Type      string `json:"type"`
+	Type      int    `json:"type"` // fplv2 model.PrimitiveValue: a number on the wire
 	BoolValue *bool  `json:"bool,omitempty"`
 	// NameValue   *string  `json:"name,omitempty"`
 	IntValue    *int64                     `json:"int,omitempty"`

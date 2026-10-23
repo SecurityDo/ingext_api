@@ -39,3 +39,58 @@ func (c *Client) GetResultsByID(id uint) (*model.GetMetricFPLResultResponse, err
 	}
 	return resp, nil
 }
+
+// ListReportArchive calls list_fpl_report_archive.
+func (c *Client) ListReportArchive(req *model.ReportArchiveRequest) (*model.ListReportArchiveResponse, error) {
+	svc := fluencyAPI.NewFPLService(c.ingextClient)
+	resp, err := svc.ListReportArchive(req)
+	if err != nil {
+		c.Logger.Error("failed to list report archive", "name", req.Name, "error", err)
+		return nil, fmt.Errorf("failed to list report archive: %w", err)
+	}
+	return resp, nil
+}
+
+// GetReportArchive calls get_fpl_report_archive.
+func (c *Client) GetReportArchive(req *model.ReportArchiveRequest) (*model.ReportArchiveEntry, error) {
+	svc := fluencyAPI.NewFPLService(c.ingextClient)
+	entry, err := svc.GetReportArchive(req)
+	if err != nil {
+		c.Logger.Error("failed to get report archive day", "name", req.Name, "day", req.Day, "id", req.ID, "error", err)
+		return nil, fmt.Errorf("failed to get report archive day: %w", err)
+	}
+	return entry, nil
+}
+
+// DownloadReportArchive calls download_fpl_report_archive.
+func (c *Client) DownloadReportArchive(req *model.ReportArchiveRequest) (*model.DownloadReportArchiveResponse, error) {
+	svc := fluencyAPI.NewFPLService(c.ingextClient)
+	resp, err := svc.DownloadReportArchive(req)
+	if err != nil {
+		c.Logger.Error("failed to download report archive", "name", req.Name, "error", err)
+		return nil, fmt.Errorf("failed to download report archive: %w", err)
+	}
+	return resp, nil
+}
+
+// BackfillReportArchive calls backfill_fpl_report_archive.
+func (c *Client) BackfillReportArchive(req *model.ReportArchiveRequest) (*model.BackfillReportArchiveResponse, error) {
+	svc := fluencyAPI.NewFPLService(c.ingextClient)
+	resp, err := svc.BackfillReportArchive(req)
+	if err != nil {
+		c.Logger.Error("failed to backfill report archive", "name", req.Name, "error", err)
+		return nil, fmt.Errorf("failed to backfill report archive: %w", err)
+	}
+	return resp, nil
+}
+
+// ReindexReportArchive calls reindex_fpl_report_archive.
+func (c *Client) ReindexReportArchive(req *model.ReportArchiveRequest) (*model.ReindexReportArchiveResponse, error) {
+	svc := fluencyAPI.NewFPLService(c.ingextClient)
+	resp, err := svc.ReindexReportArchive(req)
+	if err != nil {
+		c.Logger.Error("failed to reindex report archive", "name", req.Name, "error", err)
+		return nil, fmt.Errorf("failed to reindex report archive: %w", err)
+	}
+	return resp, nil
+}

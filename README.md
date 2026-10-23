@@ -440,6 +440,33 @@ ingext fpl get --id 123
 ingext fpl results --id 123
 ```
 
+#### Scheduled-report archive (`fpl archive`)
+
+A daily scheduled report with `archive` enabled runs once a day for exactly the previous
+day (in the archive timezone, UTC by default) and keeps each result for 12 months, so
+weekly, monthly and quarterly reports can be assembled from the dailies. Days are
+`YYYY-MM-DD` in the archive timezone; ranges include both ends.
+
+```bash
+# Archived reports, then one report's days with coverage (default: the last 31 days)
+ingext fpl archive list
+ingext fpl archive list --name System_Event_Ingress_Report --from 2026-09-01 --to 2026-09-30
+
+# One day's entry, and its result (or a range of up to 92 days) saved to a file
+ingext fpl archive get --name System_Event_Ingress_Report --day 2026-10-22
+ingext fpl archive download --name System_Event_Ingress_Report --from 2026-09-01 --to 2026-09-30 \
+    [--objects statsByEventType,totalStatsTimeTable] [--limit 100] --output september.json
+
+# Fill missing days in the background (completed days skipped unless --force); progress shows in list
+ingext fpl archive backfill --name System_Event_Ingress_Report --from 2026-09-01 --to 2026-09-30
+
+# Rebuild the archive index from the stored files
+ingext fpl archive reindex [--name System_Event_Ingress_Report]
+```
+
+`download` warns on stderr when the range is not fully covered. Don't use `--limit` on tables
+you intend to sum across days: it keeps only the first rows of each day.
+
 ### Resource (`resource`)
 
 Search resources by type and customer.

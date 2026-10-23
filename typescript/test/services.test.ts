@@ -187,6 +187,38 @@ describe("FPLService", () => {
     expect(cap.url).toBe("https://x.example/api/ds/run_fplv2_report");
     expect(id).toBe(42);
   });
+
+  it("listReportArchive sends the range and returns coverage", async () => {
+    const { ingext, cap } = makeIngext(() => ({
+      name: "Daily",
+      enabled: true,
+      timezone: "UTC",
+      coverage: { firstDay: "2026-10-20", lastDay: "2026-10-22", expected: 3, completed: 1, aborted: 0, running: 0, missing: 2, missingDays: ["2026-10-20", "2026-10-21"] },
+      entries: [],
+      backfill: null,
+    }));
+    const res = await ingext.fpl.listReportArchive({ name: "Daily", from: "2026-10-20" });
+    expect(cap.url).toBe("https://x.example/api/ds/list_fpl_report_archive");
+    expect(cap.body).toMatchObject({ kargs: { name: "Daily", from: "2026-10-20" } });
+    expect(res.coverage?.missingDays).toEqual(["2026-10-20", "2026-10-21"]);
+  });
+
+  it("getReportArchive unwraps the entry", async () => {
+    const { ingext, cap } = makeIngext(() => ({ entry: { id: 1, reportName: "Daily", state: "completed", total: 52 } }));
+    const entry = await ingext.fpl.getReportArchive({ name: "Daily", day: "2026-10-22" });
+    expect(cap.url).toBe("https://x.example/api/ds/get_fpl_report_archive");
+    expect(entry.total).toBe(52);
+  });
+
+  it("downloadReportArchive and backfillReportArchive hit their functions", async () => {
+    const { ingext, cap } = makeIngext(() => ({ name: "Daily", timezone: "UTC", days: [], queued: ["2026-10-21"], skipped: [] }));
+    await ingext.fpl.downloadReportArchive({ name: "Daily", from: "2026-10-01", objects: ["totalStats"], limit: 5 });
+    expect(cap.url).toBe("https://x.example/api/ds/download_fpl_report_archive");
+    expect(cap.body).toMatchObject({ kargs: { objects: ["totalStats"], limit: 5 } });
+    const bf = await ingext.fpl.backfillReportArchive({ name: "Daily", day: "2026-10-21" });
+    expect(cap.url).toBe("https://x.example/api/ds/backfill_fpl_report_archive");
+    expect(bf.queued).toEqual(["2026-10-21"]);
+  });
 });
 
 describe("GridService", () => {

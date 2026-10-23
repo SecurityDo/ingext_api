@@ -87,7 +87,7 @@ export interface FplRowState {
 }
 
 export interface PrimitiveValue {
-  type: string;
+  type: number;
   bool?: boolean;
   int?: number;
   float?: number;
@@ -173,3 +173,123 @@ export interface StreamHistogram {
  * Kept as an opaque shape for type completeness.
  */
 export type AnomalyEvalT = Record<string, never>;
+
+// ---- scheduled-report archive ----
+// A daily scheduled report with archive enabled keeps each day's result for 12
+// months. Days are "YYYY-MM-DD" in the archive timezone; ranges include both ends.
+
+export interface ReportArchive {
+  enabled: boolean;
+  /** Day boundary (IANA name); empty means UTC. */
+  timezone?: string;
+  argFrom?: string;
+  argTo?: string;
+}
+
+/** kargs of every *_fpl_report_archive function; each reads what it needs. */
+export interface ReportArchiveRequest {
+  id?: number;
+  name?: string;
+  day?: string;
+  from?: string;
+  to?: string;
+  state?: "completed" | "aborted" | "running";
+  objects?: string[];
+  limit?: number;
+  force?: boolean;
+}
+
+export interface ReportArchiveEntry {
+  id?: number;
+  account: string;
+  reportName: string;
+  taskID: number;
+  state: string;
+  errorMsg?: string;
+  rangeFrom: string;
+  rangeTo: string;
+  createdOn: string;
+  completedOn?: string;
+  took: number;
+  cost: number;
+  /** Output rows. */
+  total: number;
+  resultBytes: number;
+  resultPath?: string;
+  env?: {
+    timezone: string;
+    scriptHash?: string;
+    processorName?: string;
+    arguments?: ProgramArgument[];
+    reportConfig?: unknown;
+  };
+}
+
+export interface ReportArchiveCoverage {
+  firstDay: string;
+  lastDay: string;
+  expected: number;
+  completed: number;
+  aborted: number;
+  running: number;
+  missing: number;
+  missingDays?: string[];
+  abortedDays?: string[];
+  runningDays?: string[];
+  scriptHashes?: string[];
+}
+
+export interface ArchivedReport {
+  name: string;
+  enabled: boolean;
+  timezone: string;
+  firstDay?: string;
+  lastDay?: string;
+  days: number;
+  completed: number;
+}
+
+export interface ReportArchiveBackfillStatus {
+  name: string;
+  days: string[];
+  done: number;
+  failed: number;
+  current?: string;
+  startedBy?: string;
+  startedOn: string;
+}
+
+/** Without a name only `reports` is set; with one, the rest. */
+export interface ListReportArchiveResponse {
+  reports?: ArchivedReport[];
+  name?: string;
+  enabled?: boolean;
+  timezone?: string;
+  coverage?: ReportArchiveCoverage;
+  entries?: ReportArchiveEntry[];
+  backfill?: ReportArchiveBackfillStatus | null;
+}
+
+export interface ReportArchiveDay {
+  entry: ReportArchiveEntry;
+  result: MetricFPLResponse;
+}
+
+export interface DownloadReportArchiveResponse {
+  name: string;
+  timezone: string;
+  coverage?: ReportArchiveCoverage;
+  days: ReportArchiveDay[];
+}
+
+export interface BackfillReportArchiveResponse {
+  name: string;
+  timezone: string;
+  queued: string[];
+  skipped: string[];
+}
+
+export interface ReindexReportArchiveResponse {
+  name: string;
+  result: { restored: number; existing: number; failed: number; errors?: string[] };
+}

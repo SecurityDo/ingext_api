@@ -82,6 +82,16 @@ type GenericDaoRequest[T any] struct {
 * get_fplv2_task (kargs: id, fpl) — get task status by ID
 * get_fplv2_result (kargs: id, fpl) — get task results by ID
 
+Scheduled-report archive (platform 9.0.12+, api 9.12.42+). Every function takes ReportArchiveRequest
+(id, name, day, from, to, state, objects, limit, force) and reads the fields it needs. Days are
+YYYY-MM-DD in the report's archive timezone; ranges include both ends.
+
+* list_fpl_report_archive — no name: archived reports (ListReportArchiveResponse.reports); with name: entries in from..to (default the last 31 days, max 400), coverage (missing/aborted/running days, script hashes) and a running backfill
+* get_fpl_report_archive — one entry, by id or name + day
+* download_fpl_report_archive — {name, timezone, coverage, days: [{entry, result}]}; one day or a range of up to 92 (a range needs from); completed days only; objects / limit trim each result
+* backfill_fpl_report_archive (write) — queue past days (day, or from..to, at most 92, before today); returns queued / skipped at once and runs them in the background; one backfill per account
+* reindex_fpl_report_archive (manage) — rebuild the index rows from the archived meta files, for name or all reports
+
 == platform topology APIs: (with prefix 'api/ds')
 
 * platform_list_configs (no kargs) — the whole topology of the account in one call: sources, sinks, routers, pipes, channels, connections, integrations, errors and errorStates.
