@@ -322,6 +322,21 @@ func (s *AuthService) ListSitePolicy() (policies []*model.SitePolicy, err error)
 	return result.Entries, nil
 }
 
+// UpdateSitePolicy replaces an existing site policy (matched by name) with entry.
+// The server stores entry as given, so pass the full policy, not just the change.
+func (s *AuthService) UpdateSitePolicy(entry *model.SitePolicy) error {
+	req := &GenericDAORequest[model.SitePolicy]{
+		Action: "update",
+		Args:   &GenericDAORequestArgs[model.SitePolicy]{Entry: entry},
+	}
+	_, err := s.client.GenericCall("api/auth", "sitePolicyDao", req)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error updating site policy %s: %v\n", entry.Name, err.Error())
+		return err
+	}
+	return nil
+}
+
 // DeleteSitePolicy removes the site policy identified by name.
 func (s *AuthService) DeleteSitePolicy(name string) error {
 	req := &GenericDAORequest[model.SitePolicy]{

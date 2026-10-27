@@ -116,6 +116,43 @@ func (c *Client) SetUserSitePolicy(username, policy string) error {
 	return nil
 }
 
+func (c *Client) ListSitePolicy() ([]*model.SitePolicy, error) {
+	authService := ingextAPI.NewAuthService(c.ingextClient)
+	policies, err := authService.ListSitePolicy()
+	if err != nil {
+		c.Logger.Error("failed to list site policies", "error", err)
+		return nil, fmt.Errorf("failed to list site policies: %w", err)
+	}
+	return policies, nil
+}
+
+func (c *Client) AddSitePolicy(entry *model.SitePolicy) error {
+	authService := ingextAPI.NewAuthService(c.ingextClient)
+	if err := authService.AddSitePolicy(entry); err != nil {
+		c.Logger.Error("failed to add site policy", "error", err, "policy", entry.Name)
+		return fmt.Errorf("failed to add site policy: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) UpdateSitePolicy(entry *model.SitePolicy) error {
+	authService := ingextAPI.NewAuthService(c.ingextClient)
+	if err := authService.UpdateSitePolicy(entry); err != nil {
+		c.Logger.Error("failed to update site policy", "error", err, "policy", entry.Name)
+		return fmt.Errorf("failed to update site policy: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) DeleteSitePolicy(name string) error {
+	authService := ingextAPI.NewAuthService(c.ingextClient)
+	if err := authService.DeleteSitePolicy(name); err != nil {
+		c.Logger.Error("failed to delete site policy", "error", err, "policy", name)
+		return fmt.Errorf("failed to delete site policy: %w", err)
+	}
+	return nil
+}
+
 func (c *Client) ListToken() (tokens []*model.ApiTokenEntry, err error) {
 
 	// Use structured logging
