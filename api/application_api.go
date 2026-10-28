@@ -60,7 +60,7 @@ func (s *ApplicationService) InstallAppTemplate(req *InstallAppInstanceRequest) 
 
 type DryRunCheck struct {
 	Name    string `json:"name"`
-	Status  string `json:"status"` // pass, fail or skip
+	Status  string `json:"status"` // pass, fail, skip or warn (could not decide; does not fail the verdict)
 	Message string `json:"message,omitempty"`
 }
 

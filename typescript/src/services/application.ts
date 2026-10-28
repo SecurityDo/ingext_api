@@ -26,7 +26,8 @@ export interface InstallAppInstanceRequest {
 
 export interface DryRunCheck {
   name: string;
-  status: "pass" | "fail" | "skip";
+  /** warn: could not decide (e.g. throttled); does not fail the verdict */
+  status: "pass" | "fail" | "skip" | "warn";
   message?: string;
 }
 
