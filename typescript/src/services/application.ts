@@ -20,6 +20,21 @@ export interface ListAppInstanceResponse {
 
 export interface InstallAppInstanceRequest {
   config: InstanceConfig;
+  /** Check the config without installing; use dryRunAppTemplate, which reads the result. */
+  dryRun?: boolean;
+}
+
+export interface DryRunCheck {
+  name: string;
+  status: "pass" | "fail" | "skip";
+  message?: string;
+}
+
+/** verdict is "fail" if any check failed; errorMessage joins the failed checks' messages. */
+export interface DryRunAppInstanceResponse {
+  verdict: "pass" | "fail";
+  errorMessage?: string;
+  checks: DryRunCheck[];
 }
 
 export interface UnInstallAppInstanceRequest {
@@ -57,6 +72,15 @@ export class ApplicationService {
 
   async installAppTemplate(req: InstallAppInstanceRequest): Promise<void> {
     await this.client.call(DS, "platform_install_application_instance", req);
+  }
+
+  /** Fill and check the template without installing. A failed check is a "fail" verdict, not a throw. */
+  async dryRunAppTemplate(config: InstanceConfig): Promise<DryRunAppInstanceResponse> {
+    return await this.client.call<DryRunAppInstanceResponse>(
+      DS,
+      "platform_install_application_instance",
+      { config, dryRun: true },
+    );
   }
 
   async uninstallAppTemplate(req: UnInstallAppInstanceRequest): Promise<void> {

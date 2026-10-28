@@ -39,6 +39,8 @@ export { SyslogService, type SyslogPort } from "./services/syslog.js";
 
 // Service-level request / response types
 export type {
+  DryRunAppInstanceResponse,
+  DryRunCheck,
   GetAppInstanceRequest,
   GetAppInstanceResponse,
   InstallAppInstanceRequest,

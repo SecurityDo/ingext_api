@@ -45,6 +45,9 @@ func (s *ApplicationService) ListAppInstances() (*ListAppInstanceResponse, error
 
 type InstallAppInstanceRequest struct {
 	Config *model.InstanceConfig `json:"config"`
+	// DryRun checks the config without installing; use DryRunAppTemplate,
+	// which reads the result.
+	DryRun bool `json:"dryRun,omitempty"`
 }
 
 func (s *ApplicationService) InstallAppTemplate(req *InstallAppInstanceRequest) error {
@@ -53,6 +56,32 @@ func (s *ApplicationService) InstallAppTemplate(req *InstallAppInstanceRequest) 
 		return err
 	}
 	return nil
+}
+
+type DryRunCheck struct {
+	Name    string `json:"name"`
+	Status  string `json:"status"` // pass, fail or skip
+	Message string `json:"message,omitempty"`
+}
+
+// DryRunAppInstanceResponse: Verdict is "fail" if any check failed, and
+// ErrorMessage joins the failed checks' messages.
+type DryRunAppInstanceResponse struct {
+	Verdict      string         `json:"verdict"`
+	ErrorMessage string         `json:"errorMessage,omitempty"`
+	Checks       []*DryRunCheck `json:"checks"`
+}
+
+// DryRunAppTemplate runs platform_install_application_instance with dryRun
+// set: the template is filled and checked, nothing is installed. A failed
+// check is a "fail" verdict, not an error.
+func (s *ApplicationService) DryRunAppTemplate(config *model.InstanceConfig) (*DryRunAppInstanceResponse, error) {
+	var resp DryRunAppInstanceResponse
+	req := &InstallAppInstanceRequest{Config: config, DryRun: true}
+	if err := s.call("platform_install_application_instance", req, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
 }
 
 type UnInstallAppInstanceRequest struct {

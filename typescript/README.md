@@ -125,6 +125,8 @@ await ingext.notification.update({ ...ep!, email: { to: ["a@x", "b@x"] } });
 
 // application
 const tplID = await ingext.application.addAppTemplate(yamlContent);
+// dry run first: { verdict: "pass" | "fail", errorMessage, checks[] }, nothing installed
+const check = await ingext.application.dryRunAppTemplate({ application: "tpl", instance: "i1" });
 await ingext.application.installAppTemplate({ config: { application: "tpl", instance: "i1" } });
 
 // repo

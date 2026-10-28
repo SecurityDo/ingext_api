@@ -741,4 +741,19 @@ describe("ApplicationService", () => {
       kargs: { action: "add" },
     });
   });
+
+  it("dryRunAppTemplate sends dryRun and returns the verdict", async () => {
+    const { ingext, cap } = makeIngext(() => ({
+      verdict: "fail",
+      errorMessage: "parameter: SiteIDs must be a JSON array",
+      checks: [{ name: "parameter", status: "fail", message: "SiteIDs must be a JSON array" }],
+    }));
+    const res = await ingext.application.dryRunAppTemplate({ application: "tpl", instance: "i1" });
+    expect(res.verdict).toBe("fail");
+    expect(res.checks[0]!.status).toBe("fail");
+    expect(cap.body).toMatchObject({
+      function: "platform_install_application_instance",
+      kargs: { config: { application: "tpl", instance: "i1" }, dryRun: true },
+    });
+  });
 });
