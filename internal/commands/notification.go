@@ -9,9 +9,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// add-email and add-slack each keep their own --action variable. pflag writes a
+// flag's default into its variable when the flag is registered, so sharing one
+// let add-slack's "" overwrite add-email's Generic_Email_Action default, and
+// add-email without --action stored an endpoint with no action.
 var (
 	notifName            string
-	notifAction          string
+	notifEmailAction     string
+	notifSlackAction     string
 	notifTo              []string
 	notifCc              []string
 	notifChannels        []string
@@ -89,7 +94,7 @@ var notificationAddEmailCmd = &cobra.Command{
 	Use:   "add-email",
 	Short: "Add an email notification endpoint",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		id, err := AppAPI.NotificationAddEmail(notifName, notifAction, notifTo, notifCc)
+		id, err := AppAPI.NotificationAddEmail(notifName, notifEmailAction, notifTo, notifCc)
 		if err != nil {
 			return err
 		}
@@ -102,7 +107,7 @@ var notificationAddSlackCmd = &cobra.Command{
 	Use:   "add-slack",
 	Short: "Add a Slack notification endpoint",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		id, err := AppAPI.NotificationAddSlack(notifName, notifAction, notifIntegrationName, notifChannels)
+		id, err := AppAPI.NotificationAddSlack(notifName, notifSlackAction, notifIntegrationName, notifChannels)
 		if err != nil {
 			return err
 		}
@@ -156,14 +161,14 @@ func init() {
 	_ = notificationDeleteCmd.MarkFlagRequired("name")
 
 	notificationAddEmailCmd.Flags().StringVar(&notifName, "name", "", "Endpoint name")
-	notificationAddEmailCmd.Flags().StringVar(&notifAction, "action", "Generic_Email_Action", "Action name")
+	notificationAddEmailCmd.Flags().StringVar(&notifEmailAction, "action", "Generic_Email_Action", "Action name")
 	notificationAddEmailCmd.Flags().StringArrayVar(&notifTo, "to", []string{}, "To email addresses")
 	notificationAddEmailCmd.Flags().StringArrayVar(&notifCc, "cc", []string{}, "Cc email addresses")
 	_ = notificationAddEmailCmd.MarkFlagRequired("name")
 	_ = notificationAddEmailCmd.MarkFlagRequired("to")
 
 	notificationAddSlackCmd.Flags().StringVar(&notifName, "name", "", "Endpoint name")
-	notificationAddSlackCmd.Flags().StringVar(&notifAction, "action", "", "Action name (see 'ingext notification actions --integration Slack')")
+	notificationAddSlackCmd.Flags().StringVar(&notifSlackAction, "action", "", "Action name (see 'ingext notification actions --integration Slack')")
 	notificationAddSlackCmd.Flags().StringArrayVar(&notifChannels, "channel", []string{}, "Slack channel to post to (repeatable)")
 	notificationAddSlackCmd.Flags().StringVar(&notifIntegrationName, "integration-name", "", "Name of the configured Slack integration holding the token")
 	_ = notificationAddSlackCmd.MarkFlagRequired("name")
