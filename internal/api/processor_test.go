@@ -129,7 +129,7 @@ func TestClientProcessorRuleChannel(t *testing.T) {
 	stored := &model.FPLScript{ID: 7, Name: "rule1", Type: "fpl_processor", ScriptText: "x"}
 	c, calls := newProcessorDAORecorder(t, stored)
 
-	if err := c.AddProcessor("rule1", "x", "fpl_rule", "", "", nil); err == nil {
+	if err := c.AddProcessor("rule1", "x", "fpl_rule", "", "", nil, nil); err == nil {
 		t.Fatalf("expected an error adding an fpl_rule without a channel")
 	}
 	if err := c.UpdateProcessor("rule1", "x", "fpl_rule", "", "", nil); err == nil {
@@ -140,7 +140,7 @@ func TestClientProcessorRuleChannel(t *testing.T) {
 		t.Fatalf("nothing should be written without a channel, got %+v", *calls)
 	}
 
-	if err := c.AddProcessor("rule1", "x", "fpl_rule", "", "events", nil); err != nil {
+	if err := c.AddProcessor("rule1", "x", "fpl_rule", "", "events", nil, nil); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	if sent := (*calls)[1].Args.Entry; sent.Channel != "events" {
@@ -163,20 +163,20 @@ func TestClientProcessorActionConfig(t *testing.T) {
 	stored := &model.FPLScript{ID: 720024, Name: "act1", Type: "fpl_action", ActionConfig: email, ScriptText: "x"}
 	c, calls := newProcessorDAORecorder(t, stored)
 
-	if err := c.AddProcessor("act1", "x", "fpl_action", "", "", nil); err == nil {
+	if err := c.AddProcessor("act1", "x", "fpl_action", "", "", nil, nil); err == nil {
 		t.Fatalf("expected an error adding an fpl_action without an actionConfig")
 	}
-	if err := c.AddProcessor("act1", "x", "fpl_action", "", "", &model.FplActionConfig{Target: "Platform Notification"}); err == nil {
+	if err := c.AddProcessor("act1", "x", "fpl_action", "", "", &model.FplActionConfig{Target: "Platform Notification"}, nil); err == nil {
 		t.Fatalf("expected an error adding an fpl_action without an integration")
 	}
-	if err := c.AddProcessor("p1", "x", "fpl_processor", "", "", email); err == nil {
+	if err := c.AddProcessor("p1", "x", "fpl_processor", "", "", email, nil); err == nil {
 		t.Fatalf("expected an error adding an actionConfig to an fpl_processor")
 	}
 	if len(*calls) != 0 {
 		t.Fatalf("nothing should be written without a valid actionConfig, got %+v", *calls)
 	}
 
-	if err := c.AddProcessor("act1", "x", "fpl_action", "", "", email); err != nil {
+	if err := c.AddProcessor("act1", "x", "fpl_action", "", "", email, nil); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	if sent := (*calls)[0].Args.Entry; sent.ActionConfig == nil || *sent.ActionConfig != *email {
@@ -205,5 +205,19 @@ func TestClientProcessorActionConfig(t *testing.T) {
 	}
 	if sent := (*calls)[6].Args.Entry; sent.ActionConfig != nil {
 		t.Fatalf("actionConfig kept on a non-action type: %+v", sent.ActionConfig)
+	}
+}
+
+// TestClientAddProcessorTags sends the tags given on add, e.g. the signals an
+// fsm-map rule subscribes to.
+func TestClientAddProcessorTags(t *testing.T) {
+	c, calls := newProcessorDAORecorder(t, nil)
+	tags := []*model.Tag{{Name: "signal", Value: "EntraID_AiTM_Session"}, {Name: "signal", Value: "EntraID_DeviceCode_Consent"}}
+	if err := c.AddProcessor("rule1", "x", "fpl_rule", "", "fsm-map", nil, tags); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	sent := (*calls)[0].Args.Entry
+	if sent.Channel != "fsm-map" || len(sent.Tags) != 2 || sent.Tags[1].Value != "EntraID_DeviceCode_Consent" {
+		t.Fatalf("tags not sent on add: %+v", sent)
 	}
 }

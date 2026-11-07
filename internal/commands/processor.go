@@ -16,9 +16,10 @@ import (
 var (
 	procName    string
 	procContent string
-	procType    string // Default to "fpl_processor" if not specified
-	procDesc    string // Optional description for the processor
-	procChannel string // Required when procType is "fpl_rule"
+	procType    string   // Default to "fpl_processor" if not specified
+	procDesc    string   // Optional description for the processor
+	procChannel string   // Required when procType is "fpl_rule"
+	procTags    []string // --tag name=value, repeatable
 
 	// The action config of an "fpl_action". 'add' defaults the target to
 	// defaultActionTarget; 'update' leaves an unset field as stored.
@@ -43,6 +44,21 @@ var (
 	procValidateScript string
 	procValidateName   string
 )
+
+// tagsFromFlags parses repeated --tag name=value flags. The value may itself
+// contain "="; the name and the value must both be set.
+func tagsFromFlags(flags []string) ([]*model.Tag, error) {
+	var tags []*model.Tag
+	for _, f := range flags {
+		name, value, ok := strings.Cut(f, "=")
+		name, value = strings.TrimSpace(name), strings.TrimSpace(value)
+		if !ok || name == "" || value == "" {
+			return nil, fmt.Errorf("--tag %q: want name=value", f)
+		}
+		tags = append(tags, &model.Tag{Name: name, Value: value})
+	}
+	return tags, nil
+}
 
 // defaultActionTarget is the target of every action a notification endpoint
 // can name, which is every action released so far.
@@ -141,6 +157,7 @@ var processorAddCmd = &cobra.Command{
 	// 2. ingext processor add --name my-proc --content "function process() { ... }"
 	// 3. cat my-script.js | ingext processor add --name my-proc --content -
 	// 4. ingext processor add --name my-action --type fpl_action --action-integration Email --content "@./my-action.js"
+	// 5. ingext processor add --name My_Rule --type fpl_rule --channel fsm-map --tag signal=EntraID_AiTM_Session --content "@./rule.js"
 	RunE: func(cmd *cobra.Command, args []string) error {
 		content, err := readProcessorContent(procContent, cmd.InOrStdin())
 		if err != nil {
@@ -159,9 +176,13 @@ var processorAddCmd = &cobra.Command{
 			defaultTarget = defaultActionTarget
 		}
 		action := actionConfigFromFlags(procActionTarget, procActionIntegration, defaultTarget)
+		tags, err := tagsFromFlags(procTags)
+		if err != nil {
+			return err
+		}
 
 		cmd.PrintErrf("Deploying processor '%s' (%d bytes)...\n", procName, len(content))
-		err = AppAPI.AddProcessor(procName, content, procType, procDesc, procChannel, action)
+		err = AppAPI.AddProcessor(procName, content, procType, procDesc, procChannel, action, tags)
 		if err != nil {
 			return err
 		}
@@ -419,6 +440,7 @@ func init() {
 	processorAddCmd.Flags().StringVar(&procChannel, "channel", "", "Channel the rule reads from (required for --type fpl_rule)")
 	processorAddCmd.Flags().StringVar(&procActionTarget, "action-target", "", "Subsystem that invokes the action (--type fpl_action; default \""+defaultActionTarget+"\")")
 	processorAddCmd.Flags().StringVar(&procActionIntegration, "action-integration", "", "Endpoint integration the action serves, e.g. Email or Slack (required for --type fpl_action)")
+	processorAddCmd.Flags().StringArrayVar(&procTags, "tag", nil, "Tag as name=value, repeatable (e.g. --tag signal=EntraID_AiTM_Session for an fsm-map rule)")
 
 	_ = processorAddCmd.MarkFlagRequired("name")
 	_ = processorAddCmd.MarkFlagRequired("content")

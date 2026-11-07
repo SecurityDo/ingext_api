@@ -9,7 +9,8 @@ import (
 
 // AddProcessor deploys a new processor. action is the ActionConfig an
 // "fpl_action" needs and must be nil for the other types.
-func (c *Client) AddProcessor(name, content, processorType, description, channel string, action *model.FplActionConfig) (err error) {
+func (c *Client) AddProcessor(name, content, processorType, description, channel string, action *model.FplActionConfig,
+	tags []*model.Tag) (err error) {
 
 	platformService := ingextAPI.NewPlatformService(c.ingextClient)
 
@@ -24,6 +25,7 @@ func (c *Client) AddProcessor(name, content, processorType, description, channel
 		Description:  description,
 		Channel:      channel,
 		ActionConfig: action,
+		Tags:         tags,
 	}
 
 	err = platformService.AddProcessor(entry)
