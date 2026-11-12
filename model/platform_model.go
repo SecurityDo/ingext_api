@@ -13,6 +13,10 @@ type DataSourceConfig struct {
 	Format string `json:"format,omitempty"`
 	Tags   []*Tag `json:"tags,omitempty"`
 
+	// Disable is set by platform_source_disable; JobMode by platform_source_enable_job.
+	Disable bool `json:"disable,omitempty"`
+	JobMode bool `json:"jobMode,omitempty"`
+
 	Compression string `json:"compression,omitempty"`
 	//Page string `json:"page,omitempty"`
 	ReceiverName string `json:"receiverName,omitempty"`

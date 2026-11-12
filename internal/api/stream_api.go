@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/SecurityDo/ingext_api/api"
 	ingextAPI "github.com/SecurityDo/ingext_api/api"
@@ -275,4 +276,71 @@ func (c *Client) ReloadDataSource(dataSourceID string) (err error) {
 		return fmt.Errorf("failed to reload data source: %s", err.Error())
 	}
 	return nil
+}
+
+// DisableDataSource stops a data source and persists disable=true. An
+// already-disabled source is not an error here.
+func (c *Client) DisableDataSource(dataSourceID string) (err error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	err = platformService.SourceDisable(dataSourceID)
+
+	if err != nil {
+		if strings.Contains(err.Error(), "already disabled") {
+			return nil
+		}
+		c.Logger.Error("failed to disable data source", "error", err)
+		return fmt.Errorf("failed to disable data source: %s", err.Error())
+	}
+	return nil
+}
+
+// EnableDataSource starts a disabled data source again.
+func (c *Client) EnableDataSource(dataSourceID string) (err error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	err = platformService.SourceEnable(dataSourceID)
+
+	if err != nil {
+		c.Logger.Error("failed to enable data source", "error", err)
+		return fmt.Errorf("failed to enable data source: %s", err.Error())
+	}
+	return nil
+}
+
+// SourceInputCount returns the number of events a data source took in over the
+// last `days` days: platform_component_metrics with from = to = now and an
+// interval of `days`d, i.e. one sample of increase(...[<days>d]), action=input,
+// unit=count (events, not bytes).
+// (The platform parses FPL relative times: "now" is not one, "@m" is.)
+// measured is false when the metrics store returned no input series at all for
+// the source, which is not the same as zero.
+func (c *Client) SourceInputCount(dataSourceID string, days int) (total float64, measured bool, err error) {
+
+	platformService := ingextAPI.NewPlatformService(c.ingextClient)
+
+	resp, err := platformService.ComponentMetrics(&ingextAPI.ComponentMetricReq{
+		Component: "datasource",
+		ID:        dataSourceID,
+		From:      "@m",
+		To:        "@m",
+		Interval:  fmt.Sprintf("%dd", days),
+	})
+	if err != nil {
+		return 0, false, fmt.Errorf("failed to read data source metrics: %s", err.Error())
+	}
+	for _, m := range resp.Metrics {
+		// The query matches platform_component_.*, so each action comes back twice:
+		// platform_component_total (unit=count) and platform_component_bytes.
+		if m == nil || m.Action != "input" || m.Unit != "count" {
+			continue
+		}
+		measured = true
+		for _, v := range m.Values {
+			total += v
+		}
+	}
+	return total, measured, nil
 }

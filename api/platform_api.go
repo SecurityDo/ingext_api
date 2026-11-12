@@ -296,11 +296,15 @@ type PlatformMetricReq struct {
 }
 
 type PlatformMetric struct {
-	Tenant    string    `json:"tenant,omitempty"`
-	Name      string    `json:"name,omitempty"`
-	ID        string    `json:"id,omitempty"`
-	Pipe      string    `json:"pipe,omitempty"`
-	Processor string    `json:"processor,omitempty"`
+	Tenant    string `json:"tenant,omitempty"`
+	Name      string `json:"name,omitempty"`
+	ID        string `json:"id,omitempty"`
+	Pipe      string `json:"pipe,omitempty"`
+	Processor string `json:"processor,omitempty"`
+	// Action is the metric's action label (input, output, abort, error, buffer...);
+	// platform_component_metrics returns one series per action.
+	Action    string    `json:"action,omitempty"`
+	Component string    `json:"component,omitempty"`
 	Unit      string    `json:"unit,omitempty"`
 	Slots     []int64   `json:"slots"`
 	Values    []float64 `json:"values"`
@@ -1283,6 +1287,19 @@ func (s *PlatformService) GetComponentInfo(id string) (*model.ComponentInfo, err
 func (s *PlatformService) SourceReload(id string) error {
 	req := &SourceReloadReq{DataSourceID: id}
 	return s.call("platform_source_reload", req, nil)
+}
+
+// SourceDisable stops a data source and persists disable=true. The platform
+// answers "data source is already disabled" when it already is.
+func (s *PlatformService) SourceDisable(id string) error {
+	req := &SourceReloadReq{DataSourceID: id}
+	return s.call("platform_source_disable", req, nil)
+}
+
+// SourceEnable starts a disabled data source again.
+func (s *PlatformService) SourceEnable(id string) error {
+	req := &SourceReloadReq{DataSourceID: id}
+	return s.call("platform_source_enable", req, nil)
 }
 
 /*
