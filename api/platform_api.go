@@ -1446,6 +1446,13 @@ func (s *PlatformService) UpdateIntegration(entry *model.Integration) error {
 	return s.call("platform_integration_dao", req, nil)
 }
 
+// SetIntegrationSecret replaces an integration's whole secret
+// (platform_integration_set_secret). An update never touches the secret.
+func (s *PlatformService) SetIntegrationSecret(id string, secret json.RawMessage) error {
+	req := map[string]any{"id": id, "secret": secret}
+	return s.call("platform_integration_set_secret", req, nil)
+}
+
 // DeleteIntegration removes an integration by id.
 func (s *PlatformService) DeleteIntegration(id string) error {
 	req := &IntegrationDAORequest{
